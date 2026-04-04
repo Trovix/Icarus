@@ -1,0 +1,103 @@
+
+# Build directories
+
+build/
+out/
+bin/
+lib/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+
+
+# Compiled objects
+
+*.o
+*.obj
+*.lo
+*.la
+*.al
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Libraries
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+
+
+# Debug / logs
+
+*.log
+logs/
+*.trace
+
+
+# IDE - VSCode
+
+.vscode/
+
+
+# IDE - Visual Studio
+
+.vs/
+*.vcxproj*
+*.sln
+*.user
+*.userosscache
+*.suo
+
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
+
+# Environment / secrets
+
+.env
+.env.*
+config/local.json
+secrets/
+keys/
+*.pem
+
+
+# Dependencies 
+
+third_party/
+vendor/
+
+
+# Temporary files
+
+*.tmp
+*.temp
+*.swp
+*~
+
+
+# Test / coverage
+
+coverage/
+*.gcda
+*.gcno
+*.gcov
+
+
+# Python 
+
+__pycache__/
+*.pyc
+venv/
+.envrc

@@ -1,0 +1,19 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(ICARUS)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+file(GLOB_RECURSE SOURCES
+    src/*.cpp
+)
+
+add_executable(ICARUS ${SOURCES})
+
+target_include_directories(ICARUS PRIVATE src)
+
+
+# curl stuff
+find_package(CURL REQUIRED)
+target_link_libraries(ICARUS PRIVATE CURL::libcurl)
