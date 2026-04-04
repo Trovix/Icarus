@@ -1,27 +1,64 @@
 #include <iostream>
 #include <string>
-#include <curl/curl.h>
-
-static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
-    return size * nmemb;
-}
+#include "connectors/http/http_client.hpp"
 
 int main() {
-    CURL* curl = curl_easy_init();
-    std::string response;
+    HttpClient client;
 
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, "https://polymarket.com/api/geoblock");
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    try {
+       
+        //geo-block check
+        {
+            std::cout << "==== Geoblock Check ====\n";
 
-        CURLcode res = curl_easy_perform(curl);
+            HttpResponse res = client.get(
+                "https://polymarket.com/api/geoblock"
+            );
 
-        if (res == CURLE_OK) {
-            std::cout << response << std::endl;
+            std::cout << "Status: " << res.status_code << "\n";
+            std::cout << "Body:\n" << res.body << "\n\n";
         }
 
-        curl_easy_cleanup(curl);
+        //fetch markets
+        {
+            std::cout << "==== Markets (limit 5) ====\n";
+
+            HttpResponse res = client.get(
+                "https://gamma-api.polymarket.com/markets?limit=5"
+            );
+
+            std::cout << "Status: " << res.status_code << "\n";
+            std::cout << "Body:\n" << res.body << "\n\n";
+        }
+
+        //fetch events
+        {
+            std::cout << "==== Events (limit 5) ====\n";
+
+            HttpResponse res = client.get(
+                "https://gamma-api.polymarket.com/events?limit=5"
+            );
+
+            std::cout << "Status: " << res.status_code << "\n";
+            std::cout << "Body:\n" << res.body << "\n\n";
+        }
+
+        //fetch token (should fail for now)
+        {
+            std::cout << "==== Orderbook (example token) ====\n";
+
+            HttpResponse res = client.get(
+                "https://clob.polymarket.com/book?token_id=0"
+            );
+
+            std::cout << "Status: " << res.status_code << "\n";
+            std::cout << "Body:\n" << res.body << "\n\n";
+        }
+
+    } catch (const std::exception& e) {
+        //curl error 
+        std::cerr << "ERROR: " << e.what() << "\n";
     }
+
+    return 0;
 }
