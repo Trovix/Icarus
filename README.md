@@ -42,24 +42,6 @@ ICARUS is a system designed to:
 
 ---
 
-## Project Structure
-
-
-```
-src/
-  core/           # canonical types and utilities
-  connectors/     # venue API adapters
-  normalisation/  # raw to canonical cleaning
-  pairs/          # manually approved mappings
-  detector/       # arbitrage logic
-  paper_engine/   # simulated execution
-  ledger/         # positions and PnL
-  app/            # orchestration
-  ui/             # minimal interface
-```
----
-
-
 ## Current Status
 
 Early Stages
