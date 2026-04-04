@@ -25,8 +25,8 @@ target_link_libraries(http PUBLIC CURL::libcurl)
 
 
 add_library(connectors
-    src/connectors/polymarket/polymarket_adapter.cpp
-    src/connectors/kalshi/kalshi_adapter.cpp
+    src/connectors/polymarket/polymarket_adaptor.cpp
+    src/connectors/kalshi/kalshi_adaptor.cpp
 )
 
 target_include_directories(connectors PUBLIC src)
