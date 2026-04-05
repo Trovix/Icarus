@@ -29,9 +29,9 @@ int main() {
 
     HttpClient client;
 
-    // Write to project root (one level up from build/)
+    // Write to project root (two levels up from build/)
     std::filesystem::path out_path =
-        std::filesystem::current_path().parent_path() / "markets.txt";
+        std::filesystem::current_path().parent_path().parent_path() / "markets.txt";
 
     std::ofstream file(out_path);
     if (!file.is_open()) {
@@ -65,15 +65,21 @@ int main() {
             }
 
             for (const auto& market : j) {
-                if (market.contains("question") && market["question"].is_string()) {
+                if ((market.contains("question") && market["question"].is_string()) && (market.contains("id") && market["id"].is_string())) {
                     std::string q = market["question"].get<std::string>();
                     clean_string(q);
+
+                    std::string i = market["id"].get<std::string>();
+                    clean_string(i);
 
                     count++;
                     std::cout << "Found market [" << count << "]\n";
 
-                    file << "- " << q << "\n";
+                    
+                    file << "- " << "MARKET ID: " << i << " || ASSOCIATED QUESTION: " << q << "\n";
                 }
+
+                
             }
 
             if (j.size() < static_cast<size_t>(limit)) {
