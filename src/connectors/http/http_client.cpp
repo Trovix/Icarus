@@ -33,6 +33,9 @@ HttpResponse HttpClient::get(
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_body);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000L);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
+    curl_easy_setopt(curl, CURLOPT_PROXY, "");
 
     for (const auto& [key, value] : headers) {
         const std::string header = key + ": " + value;

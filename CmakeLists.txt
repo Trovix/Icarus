@@ -1,100 +1,77 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ICARUS)
+project(ICARUS LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ---------------- Dependencies ----------------
 find_package(CURL REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 # ---------------- Core ----------------
-add_library(core
-    src/core/config/config.cpp
-)
+add_library(core INTERFACE)
 
-target_include_directories(core PUBLIC src)
+target_include_directories(core INTERFACE
+    src
+)
 
 # ---------------- HTTP ----------------
 add_library(http
     src/connectors/http/http_client.cpp
 )
 
-target_include_directories(http PUBLIC src)
+target_include_directories(http PUBLIC
+    src
+)
 
 target_link_libraries(http PUBLIC
     CURL::libcurl
 )
 
-# ---------------- Connectors ----------------
-add_library(connectors
-    src/connectors/polymarket/polymarket_adaptor.cpp
-    src/connectors/kalshi/kalshi_adaptor.cpp
+# ---------------- Kalshi ----------------
+add_library(kalshi
+    src/connectors/kalshi/kalshi_connector.cpp
+    src/connectors/kalshi/kalshi_parsing.cpp
 )
 
-target_include_directories(connectors PUBLIC src)
+target_include_directories(kalshi PUBLIC
+    src
+)
 
-target_link_libraries(connectors PUBLIC
-    http
+target_link_libraries(kalshi PUBLIC
     core
+    http
     nlohmann_json::nlohmann_json
 )
 
-# ---------------- Normalisation ----------------
-add_library(normalisation
-    src/normalisation/normaliser.cpp
+# ---------------- Polymarket ----------------
+add_library(polymarket
+    src/connectors/polymarket/polymarket_connector.cpp
+    src/connectors/polymarket/polymarket_parsing.cpp
 )
 
-target_include_directories(normalisation PUBLIC src)
+target_include_directories(polymarket PUBLIC
+    src
+)
 
-target_link_libraries(normalisation PUBLIC
+target_link_libraries(polymarket PUBLIC
     core
+    http
+    nlohmann_json::nlohmann_json
 )
 
-# ---------------- Pairs ----------------
-add_library(pairs
-    src/pairs/pair_loader.cpp
+# ---------------- Connectors ----------------
+add_library(connectors INTERFACE)
+
+target_include_directories(connectors INTERFACE
+    src
 )
 
-target_include_directories(pairs PUBLIC src)
-
-target_link_libraries(pairs PUBLIC
-    core
-)
-
-# ---------------- Detector ----------------
-add_library(detector
-    src/detector/detector.cpp
-)
-
-target_include_directories(detector PUBLIC src)
-
-target_link_libraries(detector PUBLIC
-    core
-)
-
-# ---------------- Paper Engine ----------------
-add_library(paper_engine
-    src/paper_engine/execution_sim.cpp
-)
-
-target_include_directories(paper_engine PUBLIC src)
-
-target_link_libraries(paper_engine PUBLIC
-    core
-)
-
-# ---------------- Ledger ----------------
-add_library(ledger
-    src/ledger/ledger.cpp
-    src/ledger/pnl.cpp
-)
-
-target_include_directories(ledger PUBLIC src)
-
-target_link_libraries(ledger PUBLIC
-    core
+target_link_libraries(connectors INTERFACE
+    kalshi
+    polymarket
 )
 
 # ---------------- App ----------------
@@ -102,15 +79,12 @@ add_library(app
     src/app/app.cpp
 )
 
-target_include_directories(app PUBLIC src)
+target_include_directories(app PUBLIC
+    src
+)
 
 target_link_libraries(app PUBLIC
     connectors
-    normalisation
-    pairs
-    detector
-    paper_engine
-    ledger
     core
 )
 
@@ -121,4 +95,5 @@ add_executable(ICARUS
 
 target_link_libraries(ICARUS PRIVATE
     app
+    kalshi
 )

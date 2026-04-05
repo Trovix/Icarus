@@ -1,20 +1,60 @@
 #include "connectors/kalshi/kalshi_parsing.hpp"
 
+#include <cmath>
 #include <nlohmann/json.hpp>
 
 namespace icarus::connectors::kalshi {
 
 namespace {
 
+int parse_price_cents(const nlohmann::json& json) {
+    if (json.is_string()) {
+        const double dollars = std::stod(json.get<std::string>());
+        return static_cast<int>(std::lround(dollars * 100.0));
+    }
+
+    if (json.is_number_float()) {
+        return static_cast<int>(std::lround(json.get<double>() * 100.0));
+    }
+
+    if (json.is_number_integer()) {
+        return json.get<int>();
+    }
+
+    return 0;
+}
+
+int parse_size(const nlohmann::json& json) {
+    if (json.is_string()) {
+        return static_cast<int>(std::lround(std::stod(json.get<std::string>())));
+    }
+
+    if (json.is_number_float()) {
+        return static_cast<int>(std::lround(json.get<double>()));
+    }
+
+    if (json.is_number_integer()) {
+        return json.get<int>();
+    }
+
+    return 0;
+}
+
 RawPriceLevel parse_price_level(const nlohmann::json& json) {
     RawPriceLevel level{};
 
-    if (json.contains("price") && json["price"].is_number_integer()) {
-        level.price = json["price"].get<int>();
+    if (json.is_array() && json.size() >= 2) {
+        level.price = parse_price_cents(json[0]);
+        level.size = parse_size(json[1]);
+        return level;
     }
 
-    if (json.contains("size") && json["size"].is_number_integer()) {
-        level.size = json["size"].get<int>();
+    if (json.contains("price")) {
+        level.price = parse_price_cents(json["price"]);
+    }
+
+    if (json.contains("size")) {
+        level.size = parse_size(json["size"]);
     }
 
     return level;
@@ -50,13 +90,17 @@ icarus::core::OrderBookSide to_reconstructed_ask_side(const std::vector<RawPrice
 
 std::vector<RawMarket> parse_markets_json(const std::string& json) {
     std::vector<RawMarket> markets;
-    const nlohmann::json parsed = nlohmann::json::parse(json);
+    const nlohmann::json parsed = nlohmann::json::parse(json, nullptr, false);
 
-    if (!parsed.is_array()) {
+    if (parsed.is_discarded() || !parsed.is_object()) {
         return markets;
     }
 
-    for (const nlohmann::json& item : parsed) {
+    if (!parsed.contains("markets") || !parsed["markets"].is_array()) {
+        return markets;
+    }
+
+    for (const nlohmann::json& item : parsed["markets"]) {
         if (!item.is_object()) {
             continue;
         }
@@ -71,12 +115,10 @@ std::vector<RawMarket> parse_markets_json(const std::string& json) {
             market.title = item["title"].get<std::string>();
         }
 
-        if (item.contains("active") && item["active"].is_boolean()) {
-            market.active = item["active"].get<bool>();
-        }
-
-        if (item.contains("closed") && item["closed"].is_boolean()) {
-            market.closed = item["closed"].get<bool>();
+        if (item.contains("status") && item["status"].is_string()) {
+            const std::string status = item["status"].get<std::string>();
+            market.active = (status == "open");
+            market.closed = (status == "closed" || status == "settled");
         }
 
         markets.push_back(market);
@@ -87,19 +129,21 @@ std::vector<RawMarket> parse_markets_json(const std::string& json) {
 
 RawOrderBook parse_order_book_json(const std::string& json) {
     RawOrderBook order_book{};
-    const nlohmann::json parsed = nlohmann::json::parse(json);
+    const nlohmann::json parsed = nlohmann::json::parse(json, nullptr, false);
 
-    if (!parsed.is_object()) {
+    if (parsed.is_discarded() || !parsed.is_object()) {
         return order_book;
     }
 
-    if (parsed.contains("ticker") && parsed["ticker"].is_string()) {
-        order_book.ticker = parsed["ticker"].get<std::string>();
+    if (!parsed.contains("orderbook_fp") || !parsed["orderbook_fp"].is_object()) {
+        return order_book;
     }
 
-    if (parsed.contains("yes_bids") && parsed["yes_bids"].is_array()) {
-        for (const nlohmann::json& level_json : parsed["yes_bids"]) {
-            if (!level_json.is_object()) {
+    const nlohmann::json& orderbook_fp = parsed["orderbook_fp"];
+
+    if (orderbook_fp.contains("yes_dollars") && orderbook_fp["yes_dollars"].is_array()) {
+        for (const nlohmann::json& level_json : orderbook_fp["yes_dollars"]) {
+            if (!level_json.is_array()) {
                 continue;
             }
 
@@ -107,9 +151,9 @@ RawOrderBook parse_order_book_json(const std::string& json) {
         }
     }
 
-    if (parsed.contains("no_bids") && parsed["no_bids"].is_array()) {
-        for (const nlohmann::json& level_json : parsed["no_bids"]) {
-            if (!level_json.is_object()) {
+    if (orderbook_fp.contains("no_dollars") && orderbook_fp["no_dollars"].is_array()) {
+        for (const nlohmann::json& level_json : orderbook_fp["no_dollars"]) {
+            if (!level_json.is_array()) {
                 continue;
             }
 

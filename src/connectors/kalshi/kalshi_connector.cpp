@@ -9,8 +9,13 @@ KalshiConnector::KalshiConnector(const HttpClient& http)
     : http_(http) {}
 
 std::vector<icarus::core::Market> KalshiConnector::fetch_markets() {
-    const std::string url = "https://api.kalshi.com/v1/markets";
+    const std::string url =
+        "https://api.elections.kalshi.com/trade-api/v2/markets?status=open&mve_filter=exclude";
     const HttpResponse response = http_.get(url);
+
+    if (response.status_code != 200) {
+        return {};
+    }
 
     const std::vector<RawMarket> raw_markets = parse_markets_json(response.body);
     std::vector<icarus::core::Market> markets;
@@ -24,9 +29,15 @@ std::vector<icarus::core::Market> KalshiConnector::fetch_markets() {
 }
 
 icarus::core::OrderBook KalshiConnector::fetch_order_book(const std::string& ticker) {
-    const std::string url = "https://api.kalshi.com/v1/markets/" + ticker + "/orderbook";
+    const std::string url = "https://api.elections.kalshi.com/trade-api/v2/markets/" + ticker + "/orderbook";
     const HttpResponse response = http_.get(url);
-    const RawOrderBook raw_order_book = parse_order_book_json(response.body);
+
+    if (response.status_code != 200) {
+        return {};
+    }
+
+    RawOrderBook raw_order_book = parse_order_book_json(response.body);
+    raw_order_book.ticker = ticker;
     return to_canonical_order_book(raw_order_book);
 }
 
