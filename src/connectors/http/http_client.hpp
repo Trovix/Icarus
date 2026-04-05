@@ -1,7 +1,9 @@
 #pragma once
 
+#include <map>
 #include <string>
-#include <vector>
+
+namespace icarus::connectors {
 
 struct HttpResponse {
     long status_code;
@@ -10,15 +12,10 @@ struct HttpResponse {
 
 class HttpClient {
 public:
-    HttpClient();
-    ~HttpClient();
-
     HttpResponse get(
         const std::string& url,
-        const std::vector<std::string>& headers = {},
-        long timeout_ms = 5000
-    );
-
-private:
-    static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp);
+        const std::map<std::string, std::string>& headers = {}
+    ) const;
 };
+
+}  // namespace icarus::connectors
