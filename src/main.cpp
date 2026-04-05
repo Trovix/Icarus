@@ -76,7 +76,7 @@ int main() {
                     std::cout << "Found market [" << count << "]\n";
 
                     
-                    file << "- " << "MARKET ID: " << i << " || ASSOCIATED QUESTION: " << q << "\n";
+                    file << "- " << i << ": " << q << "\n";
                 }
 
                 
