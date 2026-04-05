@@ -1,4 +1,4 @@
-# ICARUS
+# Icarus
 
 **Idempotent Cross-Platform Arbitrage Routing and Utility System**
 
@@ -8,7 +8,7 @@ A C++ project to detect and simulate arbitrage opportunities between prediction 
 
 ## Overview
 
-ICARUS is a system designed to:
+Icarus is a system designed to:
 
 - Ingest live market data from multiple venues (initially Polymarket and Kalshi)
 - Use manually approved pairs of semantically equivalent markets
@@ -44,12 +44,12 @@ ICARUS is a system designed to:
 
 ## Current Status
 
-Early Stages
+Kalshi API is functional
 
 Immediate goals:
 
-- Implement API requests for both platforms   
-- Define Strategy Algorithm
+- Implement API requests for polymarket   
+- Fully define Strategy
 
 
 
