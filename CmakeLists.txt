@@ -5,82 +5,106 @@ project(ICARUS)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
+# ---------------- Dependencies ----------------
 find_package(CURL REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
-
+# ---------------- Core ----------------
 add_library(core
     src/core/config/config.cpp
 )
 
 target_include_directories(core PUBLIC src)
 
-
+# ---------------- HTTP ----------------
 add_library(http
     src/connectors/http/http_client.cpp
 )
 
 target_include_directories(http PUBLIC src)
-target_link_libraries(http PUBLIC CURL::libcurl)
 
+target_link_libraries(http PUBLIC
+    CURL::libcurl
+)
 
+# ---------------- Connectors ----------------
 add_library(connectors
     src/connectors/polymarket/polymarket_adaptor.cpp
     src/connectors/kalshi/kalshi_adaptor.cpp
 )
 
 target_include_directories(connectors PUBLIC src)
-target_link_libraries(connectors PUBLIC http core)
 
+target_link_libraries(connectors PUBLIC
+    http
+    core
+    nlohmann_json::nlohmann_json
+)
 
+# ---------------- Normalisation ----------------
 add_library(normalisation
     src/normalisation/normaliser.cpp
 )
 
 target_include_directories(normalisation PUBLIC src)
-target_link_libraries(normalisation PUBLIC core)
 
+target_link_libraries(normalisation PUBLIC
+    core
+)
 
+# ---------------- Pairs ----------------
 add_library(pairs
     src/pairs/pair_loader.cpp
 )
 
 target_include_directories(pairs PUBLIC src)
-target_link_libraries(pairs PUBLIC core)
 
+target_link_libraries(pairs PUBLIC
+    core
+)
 
+# ---------------- Detector ----------------
 add_library(detector
     src/detector/detector.cpp
 )
 
 target_include_directories(detector PUBLIC src)
-target_link_libraries(detector PUBLIC core)
 
+target_link_libraries(detector PUBLIC
+    core
+)
 
+# ---------------- Paper Engine ----------------
 add_library(paper_engine
     src/paper_engine/execution_sim.cpp
 )
 
 target_include_directories(paper_engine PUBLIC src)
-target_link_libraries(paper_engine PUBLIC core)
 
+target_link_libraries(paper_engine PUBLIC
+    core
+)
 
+# ---------------- Ledger ----------------
 add_library(ledger
     src/ledger/ledger.cpp
     src/ledger/pnl.cpp
 )
 
 target_include_directories(ledger PUBLIC src)
-target_link_libraries(ledger PUBLIC core)
 
+target_link_libraries(ledger PUBLIC
+    core
+)
 
+# ---------------- App ----------------
 add_library(app
     src/app/app.cpp
 )
 
 target_include_directories(app PUBLIC src)
-target_link_libraries(app
-    PUBLIC
+
+target_link_libraries(app PUBLIC
     connectors
     normalisation
     pairs
@@ -90,12 +114,11 @@ target_link_libraries(app
     core
 )
 
-
+# ---------------- Executable ----------------
 add_executable(ICARUS
     src/main.cpp
 )
 
-target_link_libraries(ICARUS
-    PRIVATE
+target_link_libraries(ICARUS PRIVATE
     app
 )
