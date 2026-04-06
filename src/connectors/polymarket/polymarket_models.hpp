@@ -22,6 +22,6 @@ struct RawPriceLevel {
 
 struct RawOrderBook {
 
-}
+};
 
 }

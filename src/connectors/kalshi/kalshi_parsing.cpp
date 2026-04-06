@@ -63,14 +63,16 @@ RawPriceLevel parse_price_level(const nlohmann::json& json) {
     return level;
 }
 
-// Convert raw cent prices into canonical probabilities in [0.0, 1.0].
+// Convert raw dollar prices into canonical probabilities in [0.0, 1.0].
+// Kalshi orderbook_fp levels are returned in ascending price order, so the
+// canonical side is reversed to keep the best level first.
 icarus::core::OrderBookSide to_canonical_side(const std::vector<RawPriceLevel>& raw_levels) {
     icarus::core::OrderBookSide side{};
 
-    for (const RawPriceLevel& raw_level : raw_levels) {
+    for (auto it = raw_levels.rbegin(); it != raw_levels.rend(); ++it) {
         side.levels.push_back({
-            static_cast<double>(raw_level.price) / 100.0,
-            static_cast<double>(raw_level.size),
+            static_cast<double>(it->price) / 100.0,
+            static_cast<double>(it->size),
         });
     }
 
@@ -78,13 +80,14 @@ icarus::core::OrderBookSide to_canonical_side(const std::vector<RawPriceLevel>& 
 }
 
 // Binary asks are reconstructed from the opposing side's bids.
+// Reversing the opposing bids keeps the implied ask ladder best-first too.
 icarus::core::OrderBookSide to_reconstructed_ask_side(const std::vector<RawPriceLevel>& opposing_bids) {
     icarus::core::OrderBookSide side{};
 
-    for (const RawPriceLevel& raw_level : opposing_bids) {
+    for (auto it = opposing_bids.rbegin(); it != opposing_bids.rend(); ++it) {
         side.levels.push_back({
-            1.0 - (static_cast<double>(raw_level.price) / 100.0),
-            static_cast<double>(raw_level.size),
+            1.0 - (static_cast<double>(it->price) / 100.0),
+            static_cast<double>(it->size),
         });
     }
 
