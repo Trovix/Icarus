@@ -1,0 +1,7 @@
+
+ICARUS
+[1] Add market pairs
+[2] Load all markets to index files
+[3] Detect opportunities on linked pairs
+[q] Quit
+Choice: 

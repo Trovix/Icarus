@@ -77,6 +77,10 @@ target_link_libraries(connectors INTERFACE
 # ---------------- App ----------------
 add_library(app
     src/app/app.cpp
+    src/app/engine.cpp
+    src/storage/match_store.cpp
+    src/strategy/pricing.cpp
+    src/strategy/detector.cpp
 )
 
 target_include_directories(app PUBLIC
@@ -86,6 +90,7 @@ target_include_directories(app PUBLIC
 target_link_libraries(app PUBLIC
     connectors
     core
+    nlohmann_json::nlohmann_json
 )
 
 # ---------------- Executable ----------------
@@ -95,5 +100,4 @@ add_executable(ICARUS
 
 target_link_libraries(ICARUS PRIVATE
     app
-    kalshi
 )

@@ -144,11 +144,29 @@ std::vector<RawMarket> parse_markets_json(const std::string& json) {
     return markets;
 }
 
+std::string parse_markets_cursor_json(const std::string& json) {
+    const nlohmann::json parsed = nlohmann::json::parse(json, nullptr, false);
+
+    if (parsed.is_discarded() || !parsed.is_object()) {
+        return {};
+    }
+
+    if (!parsed.contains("cursor") || !parsed["cursor"].is_string()) {
+        return {};
+    }
+
+    return parsed["cursor"].get<std::string>();
+}
+
 RawMarket parse_market_json(const std::string& json) {
     const nlohmann::json parsed = nlohmann::json::parse(json, nullptr, false);
 
     if (parsed.is_discarded() || !parsed.is_object()) {
         return {};
+    }
+
+    if (parsed.contains("market") && parsed["market"].is_object()) {
+        return parse_market(parsed["market"]);
     }
 
     return parse_market(parsed);

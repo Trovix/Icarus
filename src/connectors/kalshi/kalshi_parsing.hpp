@@ -12,6 +12,8 @@ namespace icarus::connectors::kalshi {
 // Parse the markets payload returned by Kalshi into raw connector models.
 std::vector<RawMarket> parse_markets_json(const std::string& json);
 
+std::string parse_markets_cursor_json(const std::string& json);
+
 // Parse a single Kalshi market payload into a raw connector model.
 RawMarket parse_market_json(const std::string& json);
 

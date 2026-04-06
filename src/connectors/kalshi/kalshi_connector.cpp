@@ -9,21 +9,30 @@ KalshiConnector::KalshiConnector(const HttpClient& http)
     : http_(http) {}
 
 std::vector<icarus::core::Market> KalshiConnector::fetch_markets() {
-    // Keep the harness focused on open, non-multi-event markets.
-    const std::string url =
-        "https://api.elections.kalshi.com/trade-api/v2/markets?status=open&mve_filter=exclude";
-    const HttpResponse response = http_.get(url);
-
-    if (response.status_code != 200) {
-        return {};
-    }
-
-    const std::vector<RawMarket> raw_markets = parse_markets_json(response.body);
     std::vector<icarus::core::Market> markets;
-    markets.reserve(raw_markets.size());
+    std::string cursor;
 
-    for (const RawMarket& raw_market : raw_markets) {
-        markets.push_back(to_canonical_market(raw_market));
+    while (true) {
+        std::string url =
+            "https://api.elections.kalshi.com/trade-api/v2/markets?limit=100";
+        if (!cursor.empty()) {
+            url += "&cursor=" + cursor;
+        }
+
+        const HttpResponse response = http_.get(url);
+        if (response.status_code != 200) {
+            return {};
+        }
+
+        const std::vector<RawMarket> raw_markets = parse_markets_json(response.body);
+        for (const RawMarket& raw_market : raw_markets) {
+            markets.push_back(to_canonical_market(raw_market));
+        }
+
+        cursor = parse_markets_cursor_json(response.body);
+        if (cursor.empty()) {
+            break;
+        }
     }
 
     return markets;

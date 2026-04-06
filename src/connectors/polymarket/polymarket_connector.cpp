@@ -23,20 +23,30 @@ PolymarketConnector::PolymarketConnector(const HttpClient& http)
     : http_(http) {}
 
 std::vector<icarus::core::Market> PolymarketConnector::fetch_markets() {
-    const std::string url =
-        "https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=100";
-    const HttpResponse response = http_.get(url);
-
-    if (response.status_code != 200) {
-        return {};
-    }
-
-    const std::vector<RawMarket> raw_markets = parse_markets_json(response.body);
     std::vector<icarus::core::Market> markets;
-    markets.reserve(raw_markets.size());
+    constexpr int page_size = 100;
+    int offset = 0;
 
-    for (const RawMarket& raw_market : raw_markets) {
-        markets.push_back(to_canonical_market(raw_market));
+    while (true) {
+        const std::string url =
+            "https://gamma-api.polymarket.com/events?active=true&closed=false&limit=" +
+            std::to_string(page_size) + "&offset=" + std::to_string(offset);
+        const HttpResponse response = http_.get(url);
+
+        if (response.status_code != 200) {
+            return {};
+        }
+
+        const std::vector<RawMarket> raw_markets = parse_events_markets_json(response.body);
+        for (const RawMarket& raw_market : raw_markets) {
+            markets.push_back(to_canonical_market(raw_market));
+        }
+
+        if (raw_markets.size() < static_cast<std::size_t>(page_size)) {
+            break;
+        }
+
+        offset += page_size;
     }
 
     return markets;
@@ -55,18 +65,37 @@ icarus::core::Market PolymarketConnector::fetch_market(const std::string& market
 }
 
 icarus::core::OrderBook PolymarketConnector::fetch_order_book(const std::string& market_id) {
-    const std::string markets_url =
-        "https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=100";
-    const HttpResponse markets_response = http_.get(markets_url);
+    const std::string market_url = "https://gamma-api.polymarket.com/markets/" + market_id;
+    const HttpResponse market_response = http_.get(market_url);
 
-    if (markets_response.status_code != 200) {
+    if (market_response.status_code != 200) {
         return {};
     }
 
-    const std::vector<RawMarket> raw_markets = parse_markets_json(markets_response.body);
-    const RawMarket raw_market = find_market_by_id(raw_markets, market_id);
+    const RawMarket raw_market = parse_market_json(market_response.body);
 
     if (raw_market.id.empty()) {
+        return {};
+    }
+
+    if (raw_market.has_best_yes_bid || raw_market.has_best_yes_ask) {
+        RawOrderBookSide yes_book{};
+        RawOrderBookSide no_book{};
+
+        if (raw_market.has_best_yes_bid) {
+            yes_book.bids.push_back({raw_market.best_yes_bid, 0.0});
+            no_book.asks.push_back({1.0 - raw_market.best_yes_bid, 0.0});
+        }
+
+        if (raw_market.has_best_yes_ask) {
+            yes_book.asks.push_back({raw_market.best_yes_ask, 0.0});
+            no_book.bids.push_back({1.0 - raw_market.best_yes_ask, 0.0});
+        }
+
+        return to_canonical_order_book(raw_market, yes_book, no_book);
+    }
+
+    if (raw_market.yes_token_id.empty() || raw_market.no_token_id.empty()) {
         return {};
     }
 

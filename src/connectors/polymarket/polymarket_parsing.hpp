@@ -11,6 +11,8 @@ namespace icarus::connectors::polymarket {
 
 std::vector<RawMarket> parse_markets_json(const std::string& json);
 
+std::vector<RawMarket> parse_events_markets_json(const std::string& json);
+
 RawMarket parse_market_json(const std::string& json);
 
 RawOrderBookSide parse_order_book_json(const std::string& json);
