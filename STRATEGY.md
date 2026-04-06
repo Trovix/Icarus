@@ -1,6 +1,5 @@
 # Strategy - Convergence Trading
 
-## Core Concept
 
 This system doesn't rely on static arbitrage at expiry.
 
@@ -37,10 +36,9 @@ S(t_exit) < S(t_entry)
 A trade is a two-leg position across two venues:
 
 - Long the underpriced side
-- Short the overpriced side (or synthetically via NO)
+- Short the overpriced side (synthetically via NO trade)
 
-Examples:
-
+Either:
 - Buy YES on Polymarket + Buy NO on Kalshi
 - Buy YES on Kalshi + Buy NO on Polymarket
 
@@ -58,26 +56,18 @@ Threshold must cover:
 
 - Fees (both venues)
 - Slippage buffer
-- Latency risk
+- Latency risk (we dont want to buy into markets resolving in large t)
 
-All prices must be executable:
-- Use best bid/ask
-- Respect orderbook depth
 
 ---
 
 ## Exit Condition
 
-Exit when ANY of:
+Exit when:
 
 - Spread convergence:
   |S(t)| < exit_threshold
 
-- Time stop:
-  Trade exceeds maximum duration
-
-- Adverse move:
-  Spread widens beyond stop threshold
 
 ---
 
@@ -87,29 +77,18 @@ PnL is path-dependent:
 
 PnL = S(t_entry) - S(t_exit)
 
-This is independent of market resolution.
-
----
-
-## Assumptions
-
-- Markets converge over time
-- Liquidity is sufficient to enter and exit
-- Execution risk is manageable but non-zero
+This is independent of market resolution. But S(t_exit) is guarenteed to be 0 if t_exit = t_resolution.
 
 ---
 
 ## Risks
 
-- Spread widens instead of converging
-- One leg fills, the other does not
-- Latency causes missed or bad fills
-- Markets do not converge before resolution
+- Spread widens instead of converging (only an issue for small t)
+- Markets do not converge at resolution (extremely unlikely unless pairs were chosen incorrectly)
 
 ---
 
 ## Non-Goals
 
-- Predicting event outcomes
-- Holding to expiry
-- Probability modelling of underlying events
+- Predicting event outcomes (for now) in future consider weighting based on market cap- indicator of correctness??
+- Holding to expiry as a strategy (we want to exit earlier to increase profit/time)
