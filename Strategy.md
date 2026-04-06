@@ -2,9 +2,9 @@
 
 ## Core Concept
 
-This system does NOT rely on static arbitrage at expiry.
+This system doesn't rely on static arbitrage at expiry.
 
-It exploits temporary price divergence between two venues and profits from spread convergence prior to resolution.
+It exploits temporary price divergence between two venues and profits from spread convergence prior to resolution
 
 Define:
 
