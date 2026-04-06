@@ -15,11 +15,11 @@ struct PriceLevel {
 };
 
 struct OrderBookSide {
-    // Best price should appear first.
+    // Ordered so best price appears first.
     std::vector<PriceLevel> levels;
 };
 
-// Canonical binary order book with explicit YES/NO bid and ask sides.
+// Orderbook format outputed by the parsers 
 struct OrderBook {
     Venue venue;
     std::string venue_market_id;
