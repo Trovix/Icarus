@@ -4,18 +4,18 @@
 
 namespace icarus::core {
 
-// Supported venues for canonical market data.
+// Supported platforms 
 enum class Venue {
     Polymarket,
     Kalshi
 };
 
-// Minimal cross-venue market representation.
+// Minimal cross-platform market representation. Should be enough to tag semantically linked pairs.
 struct Market {
     Venue venue;
     std::string venue_market_id;
     std::string title;
-    bool active;
+    bool active; 
     bool closed;
 };
 
