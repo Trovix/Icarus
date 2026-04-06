@@ -14,6 +14,7 @@ public:
     explicit KalshiConnector(const HttpClient& http);
 
     std::vector<icarus::core::Market> fetch_markets();
+    icarus::core::Market fetch_market(const std::string& ticker);
 
     icarus::core::OrderBook fetch_order_book(const std::string& ticker);
 

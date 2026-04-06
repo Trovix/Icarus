@@ -7,6 +7,30 @@ namespace icarus::connectors::kalshi {
 
 namespace {
 
+RawMarket parse_market(const nlohmann::json& item) {
+    RawMarket market{};
+
+    if (!item.is_object()) {
+        return market;
+    }
+
+    if (item.contains("ticker") && item["ticker"].is_string()) {
+        market.ticker = item["ticker"].get<std::string>();
+    }
+
+    if (item.contains("title") && item["title"].is_string()) {
+        market.title = item["title"].get<std::string>();
+    }
+
+    if (item.contains("status") && item["status"].is_string()) {
+        const std::string status = item["status"].get<std::string>();
+        // Collapse Kalshi's status string into the project's single active flag.
+        market.active = (status == "open");
+    }
+
+    return market;
+}
+
 // Kalshi returns prices as decimal dollars; convert to integer cents.
 int parse_price_cents(const nlohmann::json& json) {
     if (json.is_string()) {
@@ -114,26 +138,20 @@ std::vector<RawMarket> parse_markets_json(const std::string& json) {
             continue;
         }
 
-        RawMarket market{};
-
-        if (item.contains("ticker") && item["ticker"].is_string()) {
-            market.ticker = item["ticker"].get<std::string>();
-        }
-
-        if (item.contains("title") && item["title"].is_string()) {
-            market.title = item["title"].get<std::string>();
-        }
-
-        if (item.contains("status") && item["status"].is_string()) {
-            const std::string status = item["status"].get<std::string>();
-            // Collapse Kalshi's status string into the project's single active flag.
-            market.active = (status == "open");
-        }
-
-        markets.push_back(market);
+        markets.push_back(parse_market(item));
     }
 
     return markets;
+}
+
+RawMarket parse_market_json(const std::string& json) {
+    const nlohmann::json parsed = nlohmann::json::parse(json, nullptr, false);
+
+    if (parsed.is_discarded() || !parsed.is_object()) {
+        return {};
+    }
+
+    return parse_market(parsed);
 }
 
 RawOrderBook parse_order_book_json(const std::string& json) {

@@ -1,27 +1,29 @@
-#pragma once 
+#pragma once
 
 #include <string>
 #include <vector>
 
 namespace icarus::connectors::polymarket {
-//minimal Market fields pulled from Polymarket API 
+
+// Minimal market fields pulled from Polymarket's Gamma API.
 struct RawMarket {
     std::string id;
     std::string question;
     bool active;
-
+    std::string yes_token_id;
+    std::string no_token_id;
 };
 
-//Raw Price Level before canonical probability conversion 
+// Raw Polymarket price level before canonical mapping.
 struct RawPriceLevel {
-    
-
+    double price;
+    double size;
 };
 
-// Raw Polymarket Orderbook
-
-struct RawOrderBook {
-
+// Raw Polymarket book for a single token.
+struct RawOrderBookSide {
+    std::vector<RawPriceLevel> bids;
+    std::vector<RawPriceLevel> asks;
 };
 
-}
+}  // namespace icarus::connectors::polymarket

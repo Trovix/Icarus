@@ -29,6 +29,18 @@ std::vector<icarus::core::Market> KalshiConnector::fetch_markets() {
     return markets;
 }
 
+icarus::core::Market KalshiConnector::fetch_market(const std::string& ticker) {
+    const std::string url = "https://api.elections.kalshi.com/trade-api/v2/markets/" + ticker;
+    const HttpResponse response = http_.get(url);
+
+    if (response.status_code != 200) {
+        return {};
+    }
+
+    const RawMarket raw_market = parse_market_json(response.body);
+    return to_canonical_market(raw_market);
+}
+
 icarus::core::OrderBook KalshiConnector::fetch_order_book(const std::string& ticker) {
     const std::string url = "https://api.elections.kalshi.com/trade-api/v2/markets/" + ticker + "/orderbook";
     const HttpResponse response = http_.get(url);

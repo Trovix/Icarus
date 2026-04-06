@@ -1,6 +1,6 @@
-#pragma once 
+#pragma once
 
-#include <string> 
+#include <string>
 #include <vector>
 
 #include "connectors/http/http_client.hpp"
@@ -8,16 +8,18 @@
 
 namespace icarus::connectors::polymarket {
 
-// Polling connector for Polymarket market and orderbook data
+// Polling connector for Polymarket market and order book data.
 class PolymarketConnector {
 public:
     explicit PolymarketConnector(const HttpClient& http);
 
     std::vector<icarus::core::Market> fetch_markets();
+    icarus::core::Market fetch_market(const std::string& market_id);
 
-    icarus::core::OrderBook fetch_order_book(const std::string& ticker);
+    icarus::core::OrderBook fetch_order_book(const std::string& market_id);
+
 private:
-    const HttpClient& http_; //http client shared between both platform's connectors it is not owned by this class
+    const HttpClient& http_;
 };
 
-} //namespace icarus::connectors::polymarket
+}  // namespace icarus::connectors::polymarket
