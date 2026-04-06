@@ -7,6 +7,7 @@ namespace icarus::connectors::kalshi {
 
 namespace {
 
+// Kalshi returns prices as decimal dollars; convert to integer cents.
 int parse_price_cents(const nlohmann::json& json) {
     if (json.is_string()) {
         const double dollars = std::stod(json.get<std::string>());
@@ -24,6 +25,7 @@ int parse_price_cents(const nlohmann::json& json) {
     return 0;
 }
 
+// Sizes may also arrive as strings, so normalize them to ints here.
 int parse_size(const nlohmann::json& json) {
     if (json.is_string()) {
         return static_cast<int>(std::lround(std::stod(json.get<std::string>())));
@@ -40,6 +42,7 @@ int parse_size(const nlohmann::json& json) {
     return 0;
 }
 
+// Support both array-shaped and object-shaped level payloads.
 RawPriceLevel parse_price_level(const nlohmann::json& json) {
     RawPriceLevel level{};
 
@@ -60,6 +63,7 @@ RawPriceLevel parse_price_level(const nlohmann::json& json) {
     return level;
 }
 
+// Convert raw cent prices into canonical probabilities in [0.0, 1.0].
 icarus::core::OrderBookSide to_canonical_side(const std::vector<RawPriceLevel>& raw_levels) {
     icarus::core::OrderBookSide side{};
 
@@ -73,6 +77,7 @@ icarus::core::OrderBookSide to_canonical_side(const std::vector<RawPriceLevel>& 
     return side;
 }
 
+// Binary asks are reconstructed from the opposing side's bids.
 icarus::core::OrderBookSide to_reconstructed_ask_side(const std::vector<RawPriceLevel>& opposing_bids) {
     icarus::core::OrderBookSide side{};
 
@@ -90,6 +95,7 @@ icarus::core::OrderBookSide to_reconstructed_ask_side(const std::vector<RawPrice
 
 std::vector<RawMarket> parse_markets_json(const std::string& json) {
     std::vector<RawMarket> markets;
+    // Use non-throwing parsing so malformed responses become empty results.
     const nlohmann::json parsed = nlohmann::json::parse(json, nullptr, false);
 
     if (parsed.is_discarded() || !parsed.is_object()) {
@@ -117,6 +123,7 @@ std::vector<RawMarket> parse_markets_json(const std::string& json) {
 
         if (item.contains("status") && item["status"].is_string()) {
             const std::string status = item["status"].get<std::string>();
+            // Collapse Kalshi's status string into the project's minimal booleans.
             market.active = (status == "open");
             market.closed = (status == "closed" || status == "settled");
         }
@@ -139,6 +146,7 @@ RawOrderBook parse_order_book_json(const std::string& json) {
         return order_book;
     }
 
+    // Kalshi publishes binary bid ladders under orderbook_fp.
     const nlohmann::json& orderbook_fp = parsed["orderbook_fp"];
 
     if (orderbook_fp.contains("yes_dollars") && orderbook_fp["yes_dollars"].is_array()) {
@@ -179,6 +187,7 @@ icarus::core::OrderBook to_canonical_order_book(const RawOrderBook& raw) {
     order_book.venue = icarus::core::Venue::Kalshi;
     order_book.venue_market_id = raw.ticker;
     order_book.snapshot_time_unix_ms = 0;
+    // Kalshi exposes bids directly; asks are inferred from the opposite side.
     order_book.yes_bids = to_canonical_side(raw.yes_bids);
     order_book.yes_asks = to_reconstructed_ask_side(raw.no_bids);
     order_book.no_bids = to_canonical_side(raw.no_bids);

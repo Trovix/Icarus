@@ -11,6 +11,7 @@
 int main() {
     try {
 #ifdef _WIN32
+        // Match Windows console output to UTF-8 API text.
         SetConsoleOutputCP(CP_UTF8);
 #endif
 
@@ -20,6 +21,7 @@ int main() {
         const auto markets = kalshi_connector.fetch_markets();
         std::cout << "Market count: " << markets.size() << '\n';
 
+        // Pick the first market that actually exposes visible top-of-book data.
         for (const auto& market : markets) {
             const auto order_book = kalshi_connector.fetch_order_book(market.venue_market_id);
             const bool has_yes_bid = !order_book.yes_bids.levels.empty();

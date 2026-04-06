@@ -7,6 +7,7 @@
 
 namespace {
 
+// Appends libcurl response bytes into the target std::string.
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     size_t total_size = size * nmemb;
     std::string* response = static_cast<std::string*>(userp);
@@ -33,8 +34,10 @@ HttpResponse HttpClient::get(
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_body);
+    // Keep polling requests bounded so connector calls fail fast.
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000L);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
+    // Ignore process proxy variables that currently point at a dead local proxy.
     curl_easy_setopt(curl, CURLOPT_PROXY, "");
 
     for (const auto& [key, value] : headers) {
@@ -52,6 +55,7 @@ HttpResponse HttpClient::get(
         throw std::runtime_error(curl_easy_strerror(res));
     }
 
+    // Return the raw response body and final HTTP status to the caller.
     long status_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code);
 

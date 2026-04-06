@@ -8,6 +8,7 @@
 
 namespace icarus::connectors::kalshi {
 
+// Polling connector for Kalshi market and order book data.
 class KalshiConnector {
 public:
     explicit KalshiConnector(const HttpClient& http);

@@ -5,6 +5,7 @@
 
 namespace icarus::connectors::kalshi {
 
+// Minimal market fields pulled directly from Kalshi's API response.
 struct RawMarket {
     std::string ticker;
     std::string title;
@@ -12,11 +13,13 @@ struct RawMarket {
     bool closed;
 };
 
+// Raw Kalshi price level before canonical probability conversion.
 struct RawPriceLevel {
     int price;
     int size;
 };
 
+// Raw Kalshi order book containing only the published bid ladders.
 struct RawOrderBook {
     std::string ticker;
     std::vector<RawPriceLevel> yes_bids;

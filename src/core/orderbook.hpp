@@ -8,6 +8,7 @@
 
 namespace icarus::core {
 
+// One quoted level on a binary order book side.
 struct PriceLevel {
     double price;
     double size;
@@ -18,6 +19,7 @@ struct OrderBookSide {
     std::vector<PriceLevel> levels;
 };
 
+// Canonical binary order book with explicit YES/NO bid and ask sides.
 struct OrderBook {
     Venue venue;
     std::string venue_market_id;

@@ -9,6 +9,7 @@ KalshiConnector::KalshiConnector(const HttpClient& http)
     : http_(http) {}
 
 std::vector<icarus::core::Market> KalshiConnector::fetch_markets() {
+    // Keep the harness focused on open, non-multi-event markets.
     const std::string url =
         "https://api.elections.kalshi.com/trade-api/v2/markets?status=open&mve_filter=exclude";
     const HttpResponse response = http_.get(url);
@@ -37,6 +38,7 @@ icarus::core::OrderBook KalshiConnector::fetch_order_book(const std::string& tic
     }
 
     RawOrderBook raw_order_book = parse_order_book_json(response.body);
+    // The requested ticker is known even if the order book payload omits it.
     raw_order_book.ticker = ticker;
     return to_canonical_order_book(raw_order_book);
 }
