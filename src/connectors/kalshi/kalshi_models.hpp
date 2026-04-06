@@ -10,7 +10,6 @@ struct RawMarket {
     std::string ticker;
     std::string title;
     bool active;
-    bool closed;
 };
 
 // Raw Kalshi price level before canonical probability conversion.

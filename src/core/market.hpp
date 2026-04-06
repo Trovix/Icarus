@@ -16,7 +16,6 @@ struct Market {
     std::string venue_market_id;
     std::string title;
     bool active; 
-    bool closed;
 };
 
 }  // namespace icarus::core

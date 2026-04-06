@@ -123,9 +123,8 @@ std::vector<RawMarket> parse_markets_json(const std::string& json) {
 
         if (item.contains("status") && item["status"].is_string()) {
             const std::string status = item["status"].get<std::string>();
-            // Collapse Kalshi's status string into the project's minimal booleans.
+            // Collapse Kalshi's status string into the project's single active flag.
             market.active = (status == "open");
-            market.closed = (status == "closed" || status == "settled");
         }
 
         markets.push_back(market);
@@ -178,7 +177,6 @@ icarus::core::Market to_canonical_market(const RawMarket& raw) {
         raw.ticker,
         raw.title,
         raw.active,
-        raw.closed,
     };
 }
 
