@@ -8,7 +8,7 @@
 
 namespace icarus::connectors::kalshi {
 
-// Polling connector for Kalshi market and order book data.
+// Polling connector for Kalshi market and orderbook data.
 class KalshiConnector {
 public:
     explicit KalshiConnector(const HttpClient& http);
@@ -18,7 +18,7 @@ public:
     icarus::core::OrderBook fetch_order_book(const std::string& ticker);
 
 private:
-    const HttpClient& http_;
+    const HttpClient& http_; //http client shared between both platform's connectors it is not owned by this class
 };
 
 }  // namespace icarus::connectors::kalshi
