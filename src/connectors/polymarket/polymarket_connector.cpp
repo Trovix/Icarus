@@ -20,6 +20,4 @@ private:
     const HttpClient& http_; //http client shared between both platform's connectors it is not owned by this class
 };
 
-
-
-}
+} //namespace icarus::connectors::polymarket
