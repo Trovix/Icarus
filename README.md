@@ -44,12 +44,14 @@ Icarus is a system designed to:
 
 ## Current Status
 
-Kalshi API is functional
+- Both Kalshi and Polymarket APIs are functional
+- Oppurtunity Detection works
+- Pair matching suggestions are poor 
 
 Immediate goals:
 
-- Implement API requests for polymarket   
-- Fully define Strategy
+- Rework pair-finder 
+- Implement profit/loss tracker 
 
 
 
