@@ -22,7 +22,7 @@ Engine::Engine(const std::filesystem::path& project_root)
 
 int Engine::run() {
     while (true) {
-        std::cout << "\nICARUS\n";
+        std::cout << "\nIcarus:\n";
         std::cout << "[1] Add market pairs\n";
         std::cout << "[2] Load all markets to index files\n";
         std::cout << "[3] Detect opportunities on linked pairs\n";
