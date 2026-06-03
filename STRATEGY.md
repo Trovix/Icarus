@@ -1,94 +1,65 @@
-# Strategy - Convergence Trading
+# Strategy - Guaranteed-Payout Cross-Venue Arbitrage
 
-
-This system doesn't rely on static arbitrage at expiry.
-
-It exploits temporary price divergence between two venues and profits from spread convergence prior to resolution
-
-Define:
-
-S(t) = p_K(t) - p_P(t)
-
-Where:
-- p_K(t) = executable price on Kalshi
-- p_P(t) = executable price on Polymarket
-
-Profit condition:
-
-S(t_exit) < S(t_entry)
-
----
-
-## Interpretation
-
-- If S(t) > 0:
-  Kalshi is more expensive than Polymarket  
-  → Short Kalshi / Long Polymarket
-
-- If S(t) < 0:
-  Polymarket is more expensive than Kalshi  
-  → Short Polymarket / Long Kalshi
-
----
+ICARUS Paper-Trading V1 buys complementary outcomes on semantically equivalent
+binary markets when their all-in executable cost is less than the guaranteed
+resolution payout.
 
 ## Trade Construction
 
-A trade is a two-leg position across two venues:
+For every accepted Kalshi/Polymarket pair, evaluate both directions:
 
-- Long the underpriced side
-- Short the overpriced side (synthetically via NO trade)
+- Buy Kalshi YES and Polymarket NO.
+- Buy Kalshi NO and Polymarket YES.
 
-Either:
-- Buy YES on Polymarket + Buy NO on Kalshi
-- Buy YES on Kalshi + Buy NO on Polymarket
-
-Direction is determined by the sign of S(t).
-
----
+If the markets resolve under genuinely equivalent rules, exactly one of the two
+legs pays `1.00` per complete pair.
 
 ## Entry Condition
 
-Enter when:
+For an intended quantity, walk the available ask depth on both venues and
+calculate:
 
-|S(t)| > threshold
+```text
+net_edge = 1.00 - leg_1_cost - leg_2_cost - fees - safety_buffer
+```
 
-Threshold must cover:
+Enter only when:
 
-- Fees (both venues)
-- Slippage buffer
-- Latency risk (we dont want to buy into markets resolving in large t)
+- `net_edge` exceeds the configured minimum;
+- both books are complete and fresh;
+- sufficient liquidity and paper cash are available;
+- portfolio risk limits permit the trade; and
+- the pair and direction are not already open or cooling down.
 
+Midpoint prices and displayed prices without size are not executable prices.
 
----
+## Execution and Exit
 
-## Exit Condition
+Each venue leg is simulated independently. Unequal or partial fills create
+explicit orphan exposure and invoke the configured risk policy.
 
-Exit when:
+Hedged positions are normally held through resolution and settled against the
+guaranteed payout. V1 does not assume that spread convergence will provide an
+earlier exit.
 
-- Spread convergence:
-  |S(t)| < exit_threshold
+## P&L
 
+For a fully hedged quantity before settlement:
 
----
+```text
+locked_in_pnl = guaranteed_payout - entry_cost - fees
+```
 
-## PnL Definition
+Unhedged positions are marked conservatively using executable exit prices.
+Realized P&L changes only through simulated closing fills or settlement.
 
-PnL is path-dependent:
+## Primary Risks
 
-PnL = S(t_entry) - S(t_exit)
+- Incorrect semantic pairing or different settlement rules.
+- Stale or incomplete order books.
+- Insufficient depth at the displayed price.
+- One venue leg filling without the other.
+- Incorrect fee or resolution modelling.
 
-This is independent of market resolution. But S(t_exit) is guarenteed to be 0 if t_exit = t_resolution.
+These risks must remain visible in the pair audit trail, paper ledger, and CLI.
 
----
-
-## Risks
-
-- Spread widens instead of converging (only an issue for small t)
-- Markets do not converge at resolution (extremely unlikely unless pairs were chosen incorrectly)
-
----
-
-## Non-Goals
-
-- Predicting event outcomes (for now) in future consider weighting based on market cap- indicator of correctness??
-- Holding to expiry as a strategy (we want to exit earlier to increase profit/time)
