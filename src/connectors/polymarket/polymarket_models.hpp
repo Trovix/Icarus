@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -10,6 +11,10 @@ struct RawMarket {
     std::string id;
     std::string question;
     bool active;
+    std::string description;
+    std::string category;
+    std::string rules;
+    std::int64_t close_time_unix_ms;
     std::string yes_token_id;
     std::string no_token_id;
     std::string yes_outcome_label;

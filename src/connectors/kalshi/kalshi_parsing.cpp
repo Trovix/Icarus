@@ -1,11 +1,126 @@
 #include "connectors/kalshi/kalshi_parsing.hpp"
 
 #include <cmath>
+#include <cstdio>
+#include <ctime>
+#include <initializer_list>
 #include <nlohmann/json.hpp>
 
 namespace icarus::connectors::kalshi {
 
 namespace {
+
+std::string string_field(
+    const nlohmann::json& item,
+    std::initializer_list<const char*> keys
+) {
+    for (const char* key : keys) {
+        if (item.contains(key) && item[key].is_string()) {
+            return item[key].get<std::string>();
+        }
+    }
+
+    return {};
+}
+
+std::int64_t parse_iso8601_unix_ms(const std::string& value) {
+    if (value.size() < 10) {
+        return 0;
+    }
+
+    int year = 0;
+    int month = 0;
+    int day = 0;
+    int hour = 0;
+    int minute = 0;
+    int second = 0;
+    if (std::sscanf(
+            value.c_str(),
+            "%4d-%2d-%2dT%2d:%2d:%2d",
+            &year,
+            &month,
+            &day,
+            &hour,
+            &minute,
+            &second
+        ) < 3) {
+        return 0;
+    }
+
+    std::tm time{};
+    time.tm_year = year - 1900;
+    time.tm_mon = month - 1;
+    time.tm_mday = day;
+    time.tm_hour = hour;
+    time.tm_min = minute;
+    time.tm_sec = second;
+
+#if defined(_WIN32)
+    const std::int64_t epoch_seconds = static_cast<std::int64_t>(_mkgmtime64(&time));
+#else
+    const std::int64_t epoch_seconds = static_cast<std::int64_t>(timegm(&time));
+#endif
+    if (epoch_seconds < 0) {
+        return 0;
+    }
+
+    std::int64_t milliseconds = 0;
+    std::size_t timezone_position = value.size() >= 19 ? 19 : value.size();
+    if (timezone_position < value.size() && value[timezone_position] == '.') {
+        std::int64_t scale = 100;
+        ++timezone_position;
+        while (timezone_position < value.size() &&
+               value[timezone_position] >= '0' && value[timezone_position] <= '9') {
+            if (scale > 0) {
+                milliseconds += (value[timezone_position] - '0') * scale;
+                scale /= 10;
+            }
+            ++timezone_position;
+        }
+    }
+
+    std::int64_t timezone_offset_ms = 0;
+    if (timezone_position < value.size() &&
+        (value[timezone_position] == '+' || value[timezone_position] == '-')) {
+        const int direction = value[timezone_position] == '+' ? 1 : -1;
+        int timezone_hour = 0;
+        int timezone_minute = 0;
+        if (std::sscanf(
+                value.c_str() + timezone_position + 1,
+                "%2d:%2d",
+                &timezone_hour,
+                &timezone_minute
+            ) >= 1) {
+            timezone_offset_ms = direction *
+                static_cast<std::int64_t>(timezone_hour * 60 + timezone_minute) * 60 * 1000;
+        }
+    }
+
+    return epoch_seconds * 1000 + milliseconds - timezone_offset_ms;
+}
+
+std::int64_t timestamp_field(
+    const nlohmann::json& item,
+    std::initializer_list<const char*> keys
+) {
+    for (const char* key : keys) {
+        if (!item.contains(key) || item[key].is_null()) {
+            continue;
+        }
+
+        if (item[key].is_string()) {
+            const std::int64_t timestamp = parse_iso8601_unix_ms(item[key].get<std::string>());
+            if (timestamp != 0) {
+                return timestamp;
+            }
+        } else if (item[key].is_number_integer()) {
+            const std::int64_t timestamp = item[key].get<std::int64_t>();
+            return timestamp < 100000000000LL ? timestamp * 1000 : timestamp;
+        }
+    }
+
+    return 0;
+}
 
 RawMarket parse_market(const nlohmann::json& item) {
     RawMarket market{};
@@ -18,14 +133,40 @@ RawMarket parse_market(const nlohmann::json& item) {
         market.ticker = item["ticker"].get<std::string>();
     }
 
-    if (item.contains("title") && item["title"].is_string()) {
-        market.title = item["title"].get<std::string>();
-    }
+    market.title = string_field(item, {"title"});
 
     if (item.contains("status") && item["status"].is_string()) {
         const std::string status = item["status"].get<std::string>();
         // Collapse Kalshi's status string into the project's single active flag.
         market.active = (status == "open");
+    } else if (item.contains("active") && item["active"].is_boolean()) {
+        market.active = item["active"].get<bool>();
+    }
+
+    market.description = string_field(item, {"description", "subtitle"});
+    market.category = string_field(item, {"category"});
+
+    const std::string primary_rules = string_field(item, {"rules_primary", "rules"});
+    const std::string secondary_rules = string_field(item, {"rules_secondary"});
+    market.rules = primary_rules;
+    if (!secondary_rules.empty()) {
+        if (!market.rules.empty()) {
+            market.rules += "\n\n";
+        }
+        market.rules += secondary_rules;
+    }
+
+    market.close_time_unix_ms = timestamp_field(
+        item,
+        {"close_time", "expected_expiration_time", "expiration_time", "latest_expiration_time"}
+    );
+    market.yes_outcome_label = string_field(item, {"yes_sub_title", "yes_outcome_label"});
+    market.no_outcome_label = string_field(item, {"no_sub_title", "no_outcome_label"});
+    if (market.yes_outcome_label.empty()) {
+        market.yes_outcome_label = "Yes";
+    }
+    if (market.no_outcome_label.empty()) {
+        market.no_outcome_label = "No";
     }
 
     return market;
@@ -33,17 +174,21 @@ RawMarket parse_market(const nlohmann::json& item) {
 
 // Kalshi returns prices as decimal dollars; convert to integer cents.
 int parse_price_cents(const nlohmann::json& json) {
-    if (json.is_string()) {
-        const double dollars = std::stod(json.get<std::string>());
-        return static_cast<int>(std::lround(dollars * 100.0));
-    }
+    try {
+        if (json.is_string()) {
+            const double dollars = std::stod(json.get<std::string>());
+            return static_cast<int>(std::lround(dollars * 100.0));
+        }
 
-    if (json.is_number_float()) {
-        return static_cast<int>(std::lround(json.get<double>() * 100.0));
-    }
+        if (json.is_number_float()) {
+            return static_cast<int>(std::lround(json.get<double>() * 100.0));
+        }
 
-    if (json.is_number_integer()) {
-        return json.get<int>();
+        if (json.is_number_integer()) {
+            return json.get<int>();
+        }
+    } catch (...) {
+        return 0;
     }
 
     return 0;
@@ -51,16 +196,20 @@ int parse_price_cents(const nlohmann::json& json) {
 
 // Sizes may also arrive as strings, so normalize them to ints here.
 int parse_size(const nlohmann::json& json) {
-    if (json.is_string()) {
-        return static_cast<int>(std::lround(std::stod(json.get<std::string>())));
-    }
+    try {
+        if (json.is_string()) {
+            return static_cast<int>(std::lround(std::stod(json.get<std::string>())));
+        }
 
-    if (json.is_number_float()) {
-        return static_cast<int>(std::lround(json.get<double>()));
-    }
+        if (json.is_number_float()) {
+            return static_cast<int>(std::lround(json.get<double>()));
+        }
 
-    if (json.is_number_integer()) {
-        return json.get<int>();
+        if (json.is_number_integer()) {
+            return json.get<int>();
+        }
+    } catch (...) {
+        return 0;
     }
 
     return 0;
@@ -216,6 +365,12 @@ icarus::core::Market to_canonical_market(const RawMarket& raw) {
         raw.ticker,
         raw.title,
         raw.active,
+        raw.description,
+        raw.category,
+        raw.rules,
+        raw.close_time_unix_ms,
+        raw.yes_outcome_label,
+        raw.no_outcome_label,
     };
 }
 
