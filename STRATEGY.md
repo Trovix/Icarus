@@ -1,65 +1,89 @@
-# Strategy - Guaranteed-Payout Cross-Venue Arbitrage
+# Strategy - Cross-Venue Convergence Trading
 
-ICARUS Paper-Trading V1 buys complementary outcomes on semantically equivalent
-binary markets when their all-in executable cost is less than the guaranteed
-resolution payout.
+ICARUS Paper-Trading V1 exploits temporary price divergence between
+semantically equivalent binary markets on Kalshi and Polymarket. It enters a
+market-neutral two-leg position and exits when the executable spread converges.
+
+Holding to resolution is a safety fallback, not the primary strategy.
+
+## Spread
+
+For aligned YES outcomes, define:
+
+```text
+S(t) = p_K_yes(t) - p_P_yes(t)
+```
+
+The reference prices used to decide direction are derived from current bid/ask
+quotes. Actual entries and exits are always evaluated using executable order
+book depth, fees, and buffers.
 
 ## Trade Construction
 
-For every accepted Kalshi/Polymarket pair, evaluate both directions:
+If `S(t) > 0`, Kalshi YES is more expensive:
 
-- Buy Kalshi YES and Polymarket NO.
-- Buy Kalshi NO and Polymarket YES.
+- Buy Polymarket YES.
+- Buy Kalshi NO as the synthetic short leg.
 
-If the markets resolve under genuinely equivalent rules, exactly one of the two
-legs pays `1.00` per complete pair.
+If `S(t) < 0`, Polymarket YES is more expensive:
 
-## Entry Condition
+- Buy Kalshi YES.
+- Buy Polymarket NO as the synthetic short leg.
 
-For an intended quantity, walk the available ask depth on both venues and
-calculate:
+The semantic matcher records outcome polarity. Prices are transformed before
+spread calculation when the two venues phrase opposite propositions.
 
-```text
-net_edge = 1.00 - leg_1_cost - leg_2_cost - fees - safety_buffer
-```
+## Entry
 
 Enter only when:
 
-- `net_edge` exceeds the configured minimum;
-- both books are complete and fresh;
-- sufficient liquidity and paper cash are available;
-- portfolio risk limits permit the trade; and
+- `abs(S(t))` exceeds the configured entry threshold;
+- the expected convergence move exceeds estimated round-trip fees, spread,
+  slippage, and safety buffer;
+- both books are fresh and have sufficient executable depth;
+- risk limits permit both legs; and
 - the pair and direction are not already open or cooling down.
 
-Midpoint prices and displayed prices without size are not executable prices.
+The simulator walks asks to open both legs. Unequal fills create explicit
+orphan exposure and invoke the configured orphan policy.
 
-## Execution and Exit
+## Exit
 
-Each venue leg is simulated independently. Unequal or partial fills create
-explicit orphan exposure and invoke the configured risk policy.
+The normal exit occurs when any configured condition is met:
 
-Hedged positions are normally held through resolution and settled against the
-guaranteed payout. V1 does not assume that spread convergence will provide an
-earlier exit.
+- `abs(S(t))` falls below the convergence exit threshold;
+- executable mark-to-market profit reaches its target;
+- loss reaches the stop-loss limit;
+- the maximum holding period expires; or
+- market closure or data quality requires a defensive exit.
+
+Both legs are closed using executable bids and available depth. A partially
+closed pair remains open with its residual hedged or orphan exposure recorded.
 
 ## P&L
 
-For a fully hedged quantity before settlement:
+For a closed paired quantity:
 
 ```text
-locked_in_pnl = guaranteed_payout - entry_cost - fees
+realized_pnl = closing_proceeds - opening_cost - entry_fees - exit_fees
 ```
 
-Unhedged positions are marked conservatively using executable exit prices.
-Realized P&L changes only through simulated closing fills or settlement.
+Open positions are marked conservatively using current executable bid depth.
+The CLI reports realized P&L, executable unrealized P&L, fees, and orphan
+exposure separately.
+
+## Resolution
+
+If a position cannot be closed before resolution, settlement pays the winning
+outcome according to venue rules. Semantic mismatches are therefore the most
+important risk and must remain visible in the pair audit trail.
 
 ## Primary Risks
 
-- Incorrect semantic pairing or different settlement rules.
-- Stale or incomplete order books.
-- Insufficient depth at the displayed price.
-- One venue leg filling without the other.
-- Incorrect fee or resolution modelling.
-
-These risks must remain visible in the pair audit trail, paper ledger, and CLI.
+- The spread widens instead of converging.
+- Pair settlement conditions are not truly equivalent.
+- Displayed prices lack executable depth.
+- One venue leg fills or closes without the other.
+- Quotes become stale during entry or exit.
+- Fees or resolution behavior are modelled incorrectly.
 

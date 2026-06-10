@@ -2,48 +2,44 @@
 
 ## Objective
 
-ICARUS is an autonomous paper-trading system for guaranteed-payout arbitrage
-between equivalent binary markets on Kalshi and Polymarket.
+ICARUS is an autonomous paper-trading system for cross-venue convergence
+trading between equivalent binary markets on Kalshi and Polymarket.
 
-The V1 system discovers equivalent markets, validates executable two-leg
-opportunities, simulates realistic execution, persists its portfolio, and
-reports cash, exposure, and profit and loss through a minimal terminal
-interface. It never submits real orders.
+The V1 system discovers equivalent markets, detects temporary price
+divergence, simulates two-leg entry and convergence exit, persists its
+portfolio, and reports cash, exposure, and profit and loss through a minimal
+terminal interface. It never submits real orders.
 
-## Trading Strategy
+## Primary Strategy
 
-For a semantically equivalent pair, ICARUS evaluates both complementary
-directions:
-
-- Buy Kalshi YES and Polymarket NO.
-- Buy Kalshi NO and Polymarket YES.
-
-An entry is eligible only when the guaranteed binary payout exceeds the full
-executable cost:
+For an accepted pair with aligned outcomes, ICARUS maintains the executable
+YES-price spread:
 
 ```text
-net_edge = 1.00 - leg_1_cost - leg_2_cost - fees - safety_buffer
+S(t) = p_K_yes(t) - p_P_yes(t)
 ```
 
-`net_edge` must exceed the configured minimum. Prices must be obtained by
-walking available ask depth for the intended quantity; midpoint prices are
-never executable prices.
+When Kalshi is expensive, the system buys Polymarket YES and Kalshi NO. When
+Polymarket is expensive, it buys Kalshi YES and Polymarket NO. It exits both
+legs using executable bids when the spread converges or another exit control
+fires.
 
-Positions are normally held until resolution. V1 may unwind an orphaned leg
-according to its risk policy, but convergence trading is not part of V1.
+The configured entry threshold must cover estimated round-trip fees, bid/ask
+spread, slippage, and a safety buffer. Holding to resolution is a fallback and
+not the normal V1 exit.
 
 ## Market Data
 
 The system must:
 
 - Support active binary Kalshi and Polymarket markets.
-- Maintain canonical market metadata including title, description, category,
-  resolution rules, close time, outcome labels, venue, and venue market ID.
+- Maintain canonical title, description, category, resolution rules, close
+  time, outcome labels, venue, and venue market ID.
 - Fetch each required order book once per polling cycle.
 - Timestamp every snapshot and reject stale or incomplete data.
 - Preserve price and size at every order-book level.
-- Treat transport and parsing failures as unavailable data, never as an empty
-  but tradable book.
+- Treat transport and parsing failures as unavailable data.
+- Normalize inverted outcome polarity before calculating spreads.
 
 ## Autonomous Pair Discovery
 
@@ -52,40 +48,57 @@ A Python matching worker must:
 1. Read canonical venue catalogs.
 2. Exclude structurally incompatible markets.
 3. Rank candidates with lexical and embedding similarity.
-4. Compare the best candidates' full resolution conditions with a structured
-   semantic judge.
+4. Compare the best candidates' complete resolution conditions with a
+   structured semantic judge.
 5. Determine YES/NO polarity explicitly.
 6. Automatically accept only high-confidence, unambiguous matches.
 7. Cache embeddings and model decisions.
-8. Persist match score, confidence, reason, source hashes, and generation time.
+8. Persist scores, confidence, reason, source hashes, and generation time.
 
-The matcher must have a deterministic offline mode for development and tests.
-When AI matching is enabled, credentials are read from `OPENAI_API_KEY` and are
-never stored in project files.
+The matcher must have a deterministic offline mode for tests. AI credentials
+are read from `OPENAI_API_KEY` and never stored in project files.
 
-## Signal Validation
+## Entry Validation
 
-An opportunity must satisfy all of the following:
+A convergence entry must satisfy all of the following:
 
 - The pair is active and accepted by the matcher.
 - Both books belong to the expected markets and outcomes.
 - Both snapshots are within the configured maximum age.
-- The intended size can be priced from real order-book depth.
-- Net edge remains above the configured threshold after fees and buffer.
-- Cash and risk limits permit both legs.
-- The same signal is not already open or inside its cooldown period.
+- Absolute spread exceeds the entry threshold.
+- Expected movement to the configured exit threshold exceeds estimated
+  round-trip costs and safety buffer.
+- Intended size can be priced from ask depth on both legs.
+- Cash and exposure limits permit both legs.
+- The same pair/direction is not open or cooling down.
+
+Reference prices may determine direction, but simulated fills and P&L must use
+executable depth rather than midpoint prices.
+
+## Exit Management
+
+Every open trade is re-evaluated on each fresh snapshot. Exit conditions are:
+
+- Spread convergence below the configured exit threshold.
+- Executable profit target reached.
+- Executable stop loss reached.
+- Maximum holding time reached.
+- Market closure or defensive data-quality exit.
+
+Closing orders walk bid depth independently. Partial closes and single-leg
+closes preserve residual exposure accurately.
 
 ## Paper Execution
 
 The simulator must:
 
 - Assign stable IDs to signals, orders, fills, and trades.
+- Support buy and sell orders.
 - Model each venue leg independently.
-- Walk book depth and support partial fills.
-- Apply venue-specific fees and a configurable safety buffer.
+- Walk bid/ask depth and support partial fills.
+- Apply venue-specific fees and configurable slippage/latency buffers.
 - Record requested, filled, and unfilled quantity.
-- Represent a one-leg or uneven fill as explicit orphan exposure.
-- Apply the configured orphan policy without inventing liquidity.
+- Represent uneven entry or exit as explicit orphan exposure.
 - Never call an authenticated trading endpoint.
 
 ## Portfolio, Ledger, and P&L
@@ -94,26 +107,28 @@ The system must track:
 
 - Starting and available cash per venue.
 - Every simulated order and fill.
-- Positions per venue, market, and outcome.
+- Open and closed convergence trades.
+- Positions per venue, market, outcome, and side.
 - Hedged and unhedged exposure.
-- Fees paid.
-- Realized and unrealized P&L.
-- Guaranteed payout and locked-in P&L for hedged positions.
-- Resolution and settlement events.
+- Entry and exit fees.
+- Realized P&L from closes and settlement.
+- Conservative executable unrealized P&L.
+- Resolution events for positions held past close.
 
-Portfolio state must be persisted atomically and recoverable after a restart.
-Repeated processing of the same signal or settlement must be idempotent.
+Portfolio state must be written atomically and recoverable after restart.
+Repeated processing of a signal, close, or settlement must be idempotent.
 
 ## Risk Controls
 
 V1 must support configurable limits for:
 
-- Minimum net edge.
+- Entry and exit spread thresholds.
+- Profit target and stop loss.
+- Maximum holding period.
 - Maximum quote age.
 - Maximum quantity per trade.
-- Maximum notional per pair.
-- Maximum notional per venue.
-- Maximum total exposure.
+- Maximum notional per pair, venue, and portfolio.
+- Maximum orphan exposure.
 - Maximum number of open trades.
 - Cooldown between entries on the same pair and direction.
 
@@ -125,22 +140,23 @@ configuration.
 The terminal interface is observational and must show:
 
 - Engine state and venue health.
-- Active accepted pairs.
-- Latest signals and simulated fills.
+- Active accepted pairs and current spreads.
+- Latest entry/exit signals and simulated fills.
 - Cash by venue.
-- Open positions and orphan exposure.
-- Realized, unrealized, and locked-in P&L.
+- Open trades, age, entry spread, and current spread.
+- Hedged positions and orphan exposure.
+- Realized and executable unrealized P&L.
 
-The only required operator controls are pause/resume, one-cycle refresh, and
-graceful quit. Trade approval is not required.
+Required controls are pause/resume, one-cycle refresh, and graceful quit. Trade
+approval is not required.
 
 ## Persistence and Configuration
 
 - Committed configuration contains safe defaults only.
 - Secrets are supplied through environment variables.
 - Generated catalogs, model caches, runtime state, and logs are not committed.
-- Writes that replace shared JSON state use a temporary file and atomic rename.
-- Schema versions are included in persisted data.
+- Shared JSON state is replaced atomically.
+- Persisted data includes schema versions.
 
 ## Required Tests
 
@@ -148,13 +164,15 @@ Automated tests must cover:
 
 - Venue parsing and canonical catalog serialization.
 - Candidate blocking, ranking, ambiguity rejection, and polarity.
-- Top-of-book and multi-level book walking.
+- Multi-level ask and bid walking.
+- Divergence entry and convergence exit decisions.
 - Fees, buffers, thresholds, and insufficient liquidity.
-- Complete, partial, and orphaned two-leg fills.
-- Cash, positions, P&L, settlement, and idempotency.
+- Complete, partial, and orphaned entry/exit fills.
+- Profit target, stop loss, and maximum holding exits.
+- Cash, positions, realized/unrealized P&L, and settlement.
 - Risk-limit and duplicate-signal rejection.
 - State save/reload and corrupted-state handling.
-- An end-to-end fixture that discovers a pair and completes a paper trade.
+- An end-to-end fixture that opens on divergence and closes on convergence.
 
 Tests must not require network access or paid API calls.
 
@@ -164,20 +182,20 @@ Paper-Trading V1 is complete when:
 
 1. A clean checkout can be configured and built using documented commands.
 2. All C++ and Python tests pass without network access.
-3. The matcher can generate accepted pairs from fixture catalogs.
-4. The engine can automatically detect and simulate a fixture opportunity.
-5. Restarting restores identical cash, positions, fills, and P&L.
-6. A live read-only smoke run can fetch supported public market data without
-   attempting a real order.
-7. The CLI explains why no trade occurs when data or risk checks fail.
+3. The matcher generates accepted, polarity-aware pairs from fixture catalogs.
+4. The engine automatically opens a fixture divergence and closes it after
+   convergence using executable depth.
+5. Restart restores identical cash, positions, fills, trade lifecycle, and P&L.
+6. A live read-only smoke run fetches public market data without attempting a
+   real order.
+7. The CLI explains rejected entries and forced exits.
 
 ## Non-Goals
 
 - Real-money or authenticated order submission.
 - Automatic capital transfers between venues.
-- Multi-outcome, basket, or non-binary arbitrage.
+- Multi-outcome, basket, or non-binary trading.
 - Predictive directional trading.
-- Convergence trading.
-- Historical strategy optimization.
+- Historical parameter optimization.
 - High-frequency or distributed execution.
 
