@@ -74,11 +74,26 @@ target_link_libraries(connectors INTERFACE
     polymarket
 )
 
+# ---------------- Canonical market catalog ----------------
+add_library(market_catalog
+    src/storage/market_catalog.cpp
+)
+
+target_include_directories(market_catalog PUBLIC
+    src
+)
+
+target_link_libraries(market_catalog PUBLIC
+    core
+    nlohmann_json::nlohmann_json
+)
+
 # ---------------- App ----------------
 add_library(app
     src/app/app.cpp
     src/app/engine.cpp
     src/storage/match_store.cpp
+    src/strategy/convergence.cpp
     src/strategy/pricing.cpp
     src/strategy/detector.cpp
 )
@@ -90,6 +105,7 @@ target_include_directories(app PUBLIC
 target_link_libraries(app PUBLIC
     connectors
     core
+    market_catalog
     nlohmann_json::nlohmann_json
 )
 
@@ -101,3 +117,55 @@ add_executable(ICARUS
 target_link_libraries(ICARUS PRIVATE
     app
 )
+
+# ---------------- Tests ----------------
+include(CTest)
+
+if(BUILD_TESTING)
+    add_executable(catalog_tests
+        tests/catalog_tests.cpp
+    )
+
+    target_include_directories(catalog_tests PRIVATE
+        src
+    )
+
+    target_link_libraries(catalog_tests PRIVATE
+        kalshi
+        polymarket
+        market_catalog
+    )
+
+    add_test(NAME catalog_tests COMMAND catalog_tests)
+
+    add_executable(match_store_tests
+        tests/match_store_tests.cpp
+        src/storage/match_store.cpp
+    )
+
+    target_include_directories(match_store_tests PRIVATE
+        src
+    )
+
+    target_link_libraries(match_store_tests PRIVATE
+        nlohmann_json::nlohmann_json
+    )
+
+    add_test(NAME match_store_tests COMMAND match_store_tests)
+
+    add_executable(convergence_tests
+        tests/convergence_tests.cpp
+        src/strategy/convergence.cpp
+        src/strategy/pricing.cpp
+    )
+
+    target_include_directories(convergence_tests PRIVATE
+        src
+    )
+
+    target_link_libraries(convergence_tests PRIVATE
+        core
+    )
+
+    add_test(NAME convergence_tests COMMAND convergence_tests)
+endif()
