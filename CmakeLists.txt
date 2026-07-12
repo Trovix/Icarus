@@ -88,6 +88,20 @@ target_link_libraries(market_catalog PUBLIC
     nlohmann_json::nlohmann_json
 )
 
+# ---------------- Paper trading ----------------
+add_library(paper_trading
+    src/paper/paper_trading.cpp
+)
+
+target_include_directories(paper_trading PUBLIC
+    src
+)
+
+target_link_libraries(paper_trading PUBLIC
+    core
+    nlohmann_json::nlohmann_json
+)
+
 # ---------------- App ----------------
 add_library(app
     src/app/app.cpp
@@ -106,6 +120,7 @@ target_link_libraries(app PUBLIC
     connectors
     core
     market_catalog
+    paper_trading
     nlohmann_json::nlohmann_json
 )
 
@@ -168,4 +183,18 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME convergence_tests COMMAND convergence_tests)
+
+    add_executable(paper_tests
+        tests/paper_tests.cpp
+    )
+
+    target_include_directories(paper_tests PRIVATE
+        src
+    )
+
+    target_link_libraries(paper_tests PRIVATE
+        paper_trading
+    )
+
+    add_test(NAME paper_tests COMMAND paper_tests)
 endif()
