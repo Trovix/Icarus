@@ -106,7 +106,9 @@ target_link_libraries(paper_trading PUBLIC
 add_library(app
     src/app/app.cpp
     src/app/engine.cpp
+    src/app/settings.cpp
     src/storage/match_store.cpp
+    src/storage/paper_store.cpp
     src/strategy/convergence.cpp
     src/strategy/pricing.cpp
     src/strategy/detector.cpp
@@ -197,4 +199,21 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME paper_tests COMMAND paper_tests)
+
+    add_executable(app_state_tests
+        tests/app_state_tests.cpp
+        src/app/settings.cpp
+        src/storage/paper_store.cpp
+    )
+
+    target_include_directories(app_state_tests PRIVATE
+        src
+    )
+
+    target_link_libraries(app_state_tests PRIVATE
+        paper_trading
+        nlohmann_json::nlohmann_json
+    )
+
+    add_test(NAME app_state_tests COMMAND app_state_tests)
 endif()
