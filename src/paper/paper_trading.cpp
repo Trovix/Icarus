@@ -189,6 +189,30 @@ void requireFiniteNonNegative(const T& value, const char* name) {
     }
 }
 
+void validatePaperTradingConfig(const PaperTradingConfig& config) {
+    const auto validateVenue = [](const VenueConfig& venue) {
+        requireFiniteNonNegative(venue.proportional_fee_rate, "proportional fee");
+        requireFiniteNonNegative(venue.fee_per_contract, "per-contract fee");
+        requireFiniteNonNegative(venue.slippage_buffer_per_contract, "slippage buffer");
+        if (venue.simulated_latency_ms < 0) {
+            throw std::invalid_argument("simulated latency must be non-negative");
+        }
+    };
+    validateVenue(config.kalshi);
+    validateVenue(config.polymarket);
+    const auto& risk = config.risk;
+    requireFiniteNonNegative(risk.minimum_net_edge, "minimum net edge");
+    requireFiniteNonNegative(risk.maximum_trade_quantity, "maximum trade quantity");
+    requireFiniteNonNegative(risk.maximum_order_notional, "maximum order notional");
+    requireFiniteNonNegative(risk.maximum_total_exposure, "maximum total exposure");
+    requireFiniteNonNegative(risk.maximum_venue_exposure, "maximum venue exposure");
+    requireFiniteNonNegative(risk.maximum_pair_quantity, "maximum pair quantity");
+    requireFiniteNonNegative(risk.maximum_orphan_quantity, "maximum orphan quantity");
+    if (risk.maximum_quote_age_ms < 0 || risk.cooldown_ms < 0) {
+        throw std::invalid_argument("time-based risk limits must be non-negative");
+    }
+}
+
 }  // namespace
 
 BookWalk walkBuyBook(
@@ -297,27 +321,7 @@ PaperTradingEngine::PaperTradingEngine(
     PaperTradingConfig config,
     std::map<core::Venue, double> starting_cash
 ) : config_(std::move(config)), initial_cash_(std::move(starting_cash)), cash_(initial_cash_) {
-    const auto validateVenue = [](const VenueConfig& venue) {
-        requireFiniteNonNegative(venue.proportional_fee_rate, "proportional fee");
-        requireFiniteNonNegative(venue.fee_per_contract, "per-contract fee");
-        requireFiniteNonNegative(venue.slippage_buffer_per_contract, "slippage buffer");
-        if (venue.simulated_latency_ms < 0) {
-            throw std::invalid_argument("simulated latency must be non-negative");
-        }
-    };
-    validateVenue(config_.kalshi);
-    validateVenue(config_.polymarket);
-    const auto& risk = config_.risk;
-    requireFiniteNonNegative(risk.minimum_net_edge, "minimum net edge");
-    requireFiniteNonNegative(risk.maximum_trade_quantity, "maximum trade quantity");
-    requireFiniteNonNegative(risk.maximum_order_notional, "maximum order notional");
-    requireFiniteNonNegative(risk.maximum_total_exposure, "maximum total exposure");
-    requireFiniteNonNegative(risk.maximum_venue_exposure, "maximum venue exposure");
-    requireFiniteNonNegative(risk.maximum_pair_quantity, "maximum pair quantity");
-    requireFiniteNonNegative(risk.maximum_orphan_quantity, "maximum orphan quantity");
-    if (risk.maximum_quote_age_ms < 0 || risk.cooldown_ms < 0) {
-        throw std::invalid_argument("time-based risk limits must be non-negative");
-    }
+    validatePaperTradingConfig(config_);
     for (const auto& entry : initial_cash_) {
         requireFiniteNonNegative(entry.second, "starting cash");
     }
@@ -325,6 +329,11 @@ PaperTradingEngine::PaperTradingEngine(
     initial_cash_.try_emplace(core::Venue::Polymarket, 0.0);
     cash_.try_emplace(core::Venue::Kalshi, 0.0);
     cash_.try_emplace(core::Venue::Polymarket, 0.0);
+}
+
+void PaperTradingEngine::reconfigure(PaperTradingConfig config) {
+    validatePaperTradingConfig(config);
+    config_ = std::move(config);
 }
 
 const VenueConfig& PaperTradingEngine::venueConfig(core::Venue venue) const {
@@ -691,6 +700,7 @@ ExecutionResult PaperTradingEngine::openConvergence(const OpenConvergenceRequest
     lifecycle.polymarket_market_id = poly_order->market_id;
     lifecycle.kalshi_outcome = kalshi_order->outcome;
     lifecycle.polymarket_outcome = poly_order->outcome;
+    lifecycle.outcomes_aligned = request.entry.pair.outcomes_aligned;
     lifecycle.kalshi_open_quantity = kalshi_order->filled_quantity;
     lifecycle.polymarket_open_quantity = poly_order->filled_quantity;
     lifecycle.kalshi_cost_basis = kalshi_order->gross_notional + kalshi_order->fee;
@@ -783,7 +793,8 @@ ConvergenceCloseResult PaperTradingEngine::evaluateAndClose(
                executable_pnl + kEpsilon >= policy.profit_target) {
         reason = ExitReason::ProfitTarget;
     } else if (has_paired_exit &&
-               combined_exit_bid + kEpsilon >= policy.minimum_combined_exit_bid) {
+               combined_exit_bid + kEpsilon >= policy.minimum_combined_exit_bid &&
+               executable_pnl >= -kEpsilon) {
         reason = ExitReason::Converged;
     }
     if (reason == ExitReason::None) {
@@ -937,6 +948,16 @@ SettlementRecord PaperTradingEngine::settle(
     record.pair_key = pair_key;
     record.winning_outcome = winning_outcome;
     record.settlement_time_unix_ms = settlement_time_unix_ms;
+    bool outcomes_aligned = true;
+    for (const auto& lifecycle : open_trades_) {
+        if (lifecycle.pair_key == pair_key) {
+            outcomes_aligned = lifecycle.outcomes_aligned;
+            break;
+        }
+    }
+    const Outcome polymarket_winning_outcome = outcomes_aligned
+        ? winning_outcome
+        : (winning_outcome == Outcome::Yes ? Outcome::No : Outcome::Yes);
     for (auto& lifecycle : open_trades_) {
         if (lifecycle.pair_key != pair_key || lifecycle.status == LifecycleStatus::Closed ||
             lifecycle.status == LifecycleStatus::Settled) {
@@ -945,7 +966,7 @@ SettlementRecord PaperTradingEngine::settle(
         const double lifecycle_payout =
             (lifecycle.kalshi_outcome == winning_outcome
                 ? lifecycle.kalshi_open_quantity : 0.0) +
-            (lifecycle.polymarket_outcome == winning_outcome
+            (lifecycle.polymarket_outcome == polymarket_winning_outcome
                 ? lifecycle.polymarket_open_quantity : 0.0);
         lifecycle.realized_pnl += lifecycle_payout - lifecycle.kalshi_cost_basis -
             lifecycle.polymarket_cost_basis;
@@ -957,7 +978,9 @@ SettlementRecord PaperTradingEngine::settle(
     }
     for (auto& position : positions_) {
         if (position.pair_key != pair_key || position.quantity <= kEpsilon) continue;
-        const double payout = position.outcome == winning_outcome ? position.quantity : 0.0;
+        const Outcome venue_winner = position.venue == core::Venue::Kalshi
+            ? winning_outcome : polymarket_winning_outcome;
+        const double payout = position.outcome == venue_winner ? position.quantity : 0.0;
         cash_[position.venue] += payout;
         record.payout += payout;
         record.released_cost_basis += position.cost_basis;
@@ -1097,6 +1120,7 @@ nlohmann::json PaperTradingEngine::toJson() const {
         {"polymarket_market_id", t.polymarket_market_id},
         {"kalshi_outcome", outcomeName(t.kalshi_outcome)},
         {"polymarket_outcome", outcomeName(t.polymarket_outcome)},
+        {"outcomes_aligned", t.outcomes_aligned},
         {"kalshi_open_quantity", t.kalshi_open_quantity},
         {"polymarket_open_quantity", t.polymarket_open_quantity},
         {"kalshi_cost_basis", t.kalshi_cost_basis},
@@ -1228,6 +1252,7 @@ PaperTradingEngine PaperTradingEngine::fromJson(const nlohmann::json& json) {
             value.kalshi_outcome = outcomeFromName(t.at("kalshi_outcome").get<std::string>());
             value.polymarket_outcome =
                 outcomeFromName(t.at("polymarket_outcome").get<std::string>());
+            value.outcomes_aligned = t.value("outcomes_aligned", true);
             value.kalshi_open_quantity = t.at("kalshi_open_quantity").get<double>();
             value.polymarket_open_quantity = t.at("polymarket_open_quantity").get<double>();
             value.kalshi_cost_basis = t.at("kalshi_cost_basis").get<double>();

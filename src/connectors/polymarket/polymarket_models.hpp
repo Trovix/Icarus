@@ -23,6 +23,7 @@ struct RawMarket {
     double best_yes_ask;
     bool has_best_yes_bid;
     bool has_best_yes_ask;
+    std::string result;
 };
 
 // Raw Polymarket price level before canonical mapping.

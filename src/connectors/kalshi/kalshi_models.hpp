@@ -17,6 +17,7 @@ struct RawMarket {
     std::int64_t close_time_unix_ms;
     std::string yes_outcome_label;
     std::string no_outcome_label;
+    std::string result;
 };
 
 // Raw Kalshi price level before canonical probability conversion.

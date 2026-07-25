@@ -25,6 +25,8 @@ struct Market {
     std::int64_t close_time_unix_ms{};
     std::string yes_outcome_label{"Yes"};
     std::string no_outcome_label{"No"};
+    // Empty while unresolved; otherwise the physical venue outcome "yes"/"no".
+    std::string result;
 };
 
 }  // namespace icarus::core

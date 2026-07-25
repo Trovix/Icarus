@@ -300,6 +300,24 @@ RawMarket parse_market(const nlohmann::json& item) {
         market.no_outcome_label = "No";
     }
 
+    const std::vector<std::string> outcome_prices = item.contains("outcomePrices")
+        ? parse_string_list(item["outcomePrices"])
+        : std::vector<std::string>{};
+    if (outcome_prices.size() == outcomes.size()) {
+        for (std::size_t i = 0; i < outcomes.size(); ++i) {
+            try {
+                if (std::stod(outcome_prices[i]) >= 1.0 - 1e-9) {
+                    const std::string winning_label = to_lower(outcomes[i]);
+                    if (winning_label == "yes" || winning_label == "no") {
+                        market.result = winning_label;
+                    }
+                }
+            } catch (const std::exception&) {
+                // A malformed or unresolved price leaves the result empty.
+            }
+        }
+    }
+
     return market;
 }
 
@@ -477,6 +495,7 @@ icarus::core::Market to_canonical_market(const RawMarket& raw) {
         raw.close_time_unix_ms,
         raw.yes_outcome_label,
         raw.no_outcome_label,
+        raw.result,
     };
 }
 

@@ -203,6 +203,7 @@ struct OpenConvergenceTrade {
     std::string polymarket_market_id;
     Outcome kalshi_outcome = Outcome::Yes;
     Outcome polymarket_outcome = Outcome::No;
+    bool outcomes_aligned = true;
     double kalshi_open_quantity = 0.0;
     double polymarket_open_quantity = 0.0;
     double kalshi_cost_basis = 0.0;
@@ -278,6 +279,7 @@ public:
     PortfolioSummary portfolio(const std::vector<MarkPrice>& marks = {}) const;
     double cash(core::Venue venue) const;
     double realizedPnl() const noexcept { return realized_pnl_; }
+    void reconfigure(PaperTradingConfig config);
 
     const PaperTradingConfig& config() const noexcept { return config_; }
     const std::vector<OrderRecord>& orders() const noexcept { return orders_; }

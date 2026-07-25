@@ -233,6 +233,23 @@ void testConvergenceExit() {
          "cash captures realized convergence profit");
 }
 
+void testConvergenceDoesNotLockInANetLoss() {
+    auto fees = config();
+    fees.kalshi.fee_per_contract = 0.03;
+    fees.polymarket.fee_per_contract = 0.03;
+    PaperTradingEngine engine(
+        fees, {{Venue::Kalshi, 100.0}, {Venue::Polymarket, 100.0}}
+    );
+    const auto opened = engine.openConvergence(openRequest("fee-aware-open"));
+    check(opened.accepted, "fee-aware convergence position opens");
+
+    const auto result = engine.evaluateAndClose(closeRequest(
+        "fee-aware-close", engine.openTrades()[0].lifecycle_id, 0.45, 0.53
+    ));
+    check(!result.triggered,
+          "raw convergence threshold cannot trigger a net loss after exit fees");
+}
+
 void testConvergenceEntryAboveGuaranteedPayoutCost() {
     PaperTradingEngine legacy(config(), {{Venue::Kalshi, 100.0}, {Venue::Polymarket, 100.0}});
     auto convergence = openRequest("divergent-above-one");
@@ -423,6 +440,34 @@ void testSnapshotRecovery() {
     check(settlement.settlement_id == "settlement-1", "ID counters survive recovery");
 }
 
+void testRecoveredPortfolioCanUseCurrentRiskSettings() {
+    PaperTradingEngine engine(
+        config(), {{Venue::Kalshi, 25.0}, {Venue::Polymarket, 30.0}}
+    );
+    auto updated = config();
+    updated.risk.maximum_trade_quantity = 3.0;
+    updated.kalshi.slippage_buffer_per_contract = 0.02;
+    engine.reconfigure(updated);
+
+    near(engine.config().risk.maximum_trade_quantity, 3.0,
+         "reconfiguration updates risk limits");
+    near(engine.config().kalshi.slippage_buffer_per_contract, 0.02,
+         "reconfiguration updates venue execution assumptions");
+
+    auto invalid = updated;
+    invalid.risk.maximum_total_exposure = -1.0;
+    bool threw = false;
+    try {
+        engine.reconfigure(invalid);
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    check(threw, "invalid replacement configuration is rejected");
+    near(engine.config().risk.maximum_total_exposure,
+         updated.risk.maximum_total_exposure,
+         "a rejected reconfiguration leaves the active settings intact");
+}
+
 void testOppositeDirection() {
     PaperTradingEngine engine(config(), {{Venue::Kalshi, 100.0}, {Venue::Polymarket, 100.0}});
     auto value = request("opposite");
@@ -451,6 +496,13 @@ void testPolarityAwareExecution() {
           "Kalshi YES uses Polymarket YES as the complementary semantic leg when inverted");
     check(engine.openTrades()[0].polymarket_outcome == Outcome::Yes,
           "lifecycle persists polarity-aware outcome selection");
+    const auto settled = engine.settle(result.trade->pair_key, Outcome::Yes, 30'000);
+    near(settled.payout, 5.0,
+         "inverted pair settlement maps the physical Polymarket winner");
+    near(engine.cash(Venue::Kalshi), 103.0,
+         "semantic YES pays the Kalshi YES leg");
+    near(engine.cash(Venue::Polymarket), 97.5,
+         "the inverted Polymarket YES leg correctly loses");
 }
 
 }  // namespace
@@ -459,6 +511,7 @@ int main() {
     testBookWalking();
     testConvergenceOpenAndAccounting();
     testConvergenceExit();
+    testConvergenceDoesNotLockInANetLoss();
     testConvergenceEntryAboveGuaranteedPayoutCost();
     testConvergenceRiskExits();
     testPartialConvergenceClose();
@@ -467,6 +520,7 @@ int main() {
     testRejectionsDedupAndCooldown();
     testSettlement();
     testSnapshotRecovery();
+    testRecoveredPortfolioCanUseCurrentRiskSettings();
     testOppositeDirection();
     testPolarityAwareExecution();
     if (failures != 0) {

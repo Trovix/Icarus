@@ -71,6 +71,7 @@ nlohmann::json serialize_market(const icarus::core::Market& market) {
         {"category", market.category},
         {"rules", market.rules},
         {"close_time_unix_ms", market.close_time_unix_ms},
+        {"result", market.result},
         {"outcomes", {
             {"yes", market.yes_outcome_label},
             {"no", market.no_outcome_label},
@@ -96,6 +97,7 @@ bool parse_market(const nlohmann::json& item, icarus::core::Market& market) {
     market.description = optional_string(item, "description");
     market.category = optional_string(item, "category");
     market.rules = optional_string(item, "rules");
+    market.result = optional_string(item, "result");
     if (item.contains("close_time_unix_ms") && item["close_time_unix_ms"].is_number_integer()) {
         market.close_time_unix_ms = item["close_time_unix_ms"].get<std::int64_t>();
     }

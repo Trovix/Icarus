@@ -41,7 +41,8 @@ void test_kalshi_metadata_parsing() {
             "rules_secondary": "Trace rainfall does not count.",
             "close_time": "2030-01-02T03:04:05.678Z",
             "yes_sub_title": "Rain",
-            "no_sub_title": "No rain"
+            "no_sub_title": "No rain",
+            "result": "YES"
         }
     })json";
 
@@ -56,6 +57,7 @@ void test_kalshi_metadata_parsing() {
     assert(market.close_time_unix_ms == 1893553445678LL);
     assert(market.yes_outcome_label == "Rain");
     assert(market.no_outcome_label == "No rain");
+    assert(market.result == "yes");
 
     // Bad numeric strings in unrelated order-book fields are ignored rather
     // than allowing venue payload drift to terminate discovery.
@@ -78,6 +80,7 @@ void test_polymarket_event_metadata_parsing() {
             "active": true,
             "clobTokenIds": "[\"no-token\",\"yes-token\"]",
             "outcomes": "[\"No\",\"Yes\"]",
+            "outcomePrices": "[\"0\",\"1\"]",
             "resolutionSource": "https://example.test/weather"
         }]
     }])json";
@@ -96,6 +99,7 @@ void test_polymarket_event_metadata_parsing() {
     assert(market.close_time_unix_ms == 1893553445000LL);
     assert(market.yes_outcome_label == "Yes");
     assert(market.no_outcome_label == "No");
+    assert(market.result == "yes");
 }
 
 void test_catalog_round_trip_and_schema() {
@@ -115,6 +119,7 @@ void test_catalog_round_trip_and_schema() {
             1893553445678LL,
             "Happens",
             "Does not happen",
+            "yes",
         },
         {
             icarus::core::Venue::Polymarket,
@@ -132,6 +137,7 @@ void test_catalog_round_trip_and_schema() {
     assert(raw["generated_at_unix_ms"] == 123456789);
     assert(raw["markets"][0]["venue"] == "kalshi");
     assert(raw["markets"][0]["outcomes"]["yes"] == "Happens");
+    assert(raw["markets"][0]["result"] == "yes");
     raw_input.close();
 
     const auto loaded = icarus::storage::load_market_catalog(path);
@@ -140,6 +146,7 @@ void test_catalog_round_trip_and_schema() {
     assert(loaded.markets.size() == 2);
     assert(loaded.markets[0].rules == "Rule text");
     assert(loaded.markets[0].yes_outcome_label == "Happens");
+    assert(loaded.markets[0].result == "yes");
     assert(loaded.markets[1].venue == icarus::core::Venue::Polymarket);
     assert(loaded.markets[1].yes_outcome_label == "Yes");
 

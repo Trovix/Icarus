@@ -1,5 +1,7 @@
 #include "connectors/kalshi/kalshi_parsing.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
@@ -167,6 +169,14 @@ RawMarket parse_market(const nlohmann::json& item) {
     }
     if (market.no_outcome_label.empty()) {
         market.no_outcome_label = "No";
+    }
+    market.result = string_field(item, {"result", "market_result"});
+    std::transform(market.result.begin(), market.result.end(), market.result.begin(),
+                   [](unsigned char character) {
+                       return static_cast<char>(std::tolower(character));
+                   });
+    if (market.result != "yes" && market.result != "no") {
+        market.result.clear();
     }
 
     return market;
@@ -371,6 +381,7 @@ icarus::core::Market to_canonical_market(const RawMarket& raw) {
         raw.close_time_unix_ms,
         raw.yes_outcome_label,
         raw.no_outcome_label,
+        raw.result,
     };
 }
 
