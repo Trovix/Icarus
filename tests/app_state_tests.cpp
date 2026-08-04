@@ -66,6 +66,8 @@ void test_missing_settings_use_safe_defaults() {
     near(settings.entry_spread_threshold, 0.08, "default divergence threshold");
     near(settings.minimum_combined_exit_bid, 0.98, "default convergence target");
     check(settings.auto_match, "automatic pair matching defaults on");
+    check(!settings.allow_offline_matching,
+          "lexical-only matching requires explicit opt-in");
 }
 
 void test_settings_override_strategy_and_risk() {

@@ -23,6 +23,7 @@ struct AppSettings {
     std::int64_t pair_reload_interval_ms = 60000;
     std::int64_t catalog_refresh_interval_ms = 21600000;
     bool auto_match = true;
+    bool allow_offline_matching = false;
 };
 
 AppSettings default_settings();

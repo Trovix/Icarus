@@ -1,11 +1,19 @@
 #include "connectors/polymarket/polymarket_connector.hpp"
 
+#include <algorithm>
+#include <chrono>
 #include <string>
 #include <vector>
 
 namespace icarus::connectors::polymarket {
 
 namespace {
+
+std::int64_t current_time_unix_ms() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+}
 
 RawMarket find_market_by_id(const std::vector<RawMarket>& markets, const std::string& market_id) {
     for (const RawMarket& market : markets) {
@@ -78,23 +86,6 @@ icarus::core::OrderBook PolymarketConnector::fetch_order_book(const std::string&
         return {};
     }
 
-    if (raw_market.has_best_yes_bid || raw_market.has_best_yes_ask) {
-        RawOrderBookSide yes_book{};
-        RawOrderBookSide no_book{};
-
-        if (raw_market.has_best_yes_bid) {
-            yes_book.bids.push_back({raw_market.best_yes_bid, 0.0});
-            no_book.asks.push_back({1.0 - raw_market.best_yes_bid, 0.0});
-        }
-
-        if (raw_market.has_best_yes_ask) {
-            yes_book.asks.push_back({raw_market.best_yes_ask, 0.0});
-            no_book.bids.push_back({1.0 - raw_market.best_yes_ask, 0.0});
-        }
-
-        return to_canonical_order_book(raw_market, yes_book, no_book);
-    }
-
     if (raw_market.yes_token_id.empty() || raw_market.no_token_id.empty()) {
         return {};
     }
@@ -105,7 +96,9 @@ icarus::core::OrderBook PolymarketConnector::fetch_order_book(const std::string&
         "https://clob.polymarket.com/book?token_id=" + raw_market.no_token_id;
 
     const HttpResponse yes_book_response = http_.get(yes_book_url);
+    const std::int64_t yes_received_unix_ms = current_time_unix_ms();
     const HttpResponse no_book_response = http_.get(no_book_url);
+    const std::int64_t no_received_unix_ms = current_time_unix_ms();
 
     if (yes_book_response.status_code != 200 || no_book_response.status_code != 200) {
         return {};
@@ -113,7 +106,14 @@ icarus::core::OrderBook PolymarketConnector::fetch_order_book(const std::string&
 
     const RawOrderBookSide yes_book = parse_order_book_json(yes_book_response.body);
     const RawOrderBookSide no_book = parse_order_book_json(no_book_response.body);
-    return to_canonical_order_book(raw_market, yes_book, no_book);
+    icarus::core::OrderBook order_book =
+        to_canonical_order_book(raw_market, yes_book, no_book);
+    // Timestamp the composite with the older token-book receipt so the quote
+    // age check includes skew introduced by these sequential public requests.
+    order_book.snapshot_time_unix_ms = std::min(
+        yes_received_unix_ms, no_received_unix_ms
+    );
+    return order_book;
 }
 
 }  // namespace icarus::connectors::polymarket

@@ -174,6 +174,9 @@ AppSettings load_settings(const std::filesystem::path& path) {
         settings.catalog_refresh_interval_ms
     );
     settings.auto_match = boolean_value(root, "auto_match", settings.auto_match);
+    settings.allow_offline_matching = boolean_value(
+        root, "allow_offline_matching", settings.allow_offline_matching
+    );
 
     if (root.contains("strategy") && root["strategy"].is_object()) {
         const nlohmann::json& strategy = root["strategy"];

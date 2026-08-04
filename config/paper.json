@@ -7,6 +7,7 @@
   "pair_reload_interval_ms": 60000,
   "catalog_refresh_interval_ms": 21600000,
   "auto_match": true,
+  "allow_offline_matching": false,
   "strategy": {
     "entry_spread_threshold": 0.08,
     "minimum_combined_exit_bid": 0.98,

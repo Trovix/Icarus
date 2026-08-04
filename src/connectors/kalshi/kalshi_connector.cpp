@@ -1,9 +1,20 @@
 #include "connectors/kalshi/kalshi_connector.hpp"
 
+#include <chrono>
 #include <string>
 #include <vector>
 
 namespace icarus::connectors::kalshi {
+
+namespace {
+
+std::int64_t current_time_unix_ms() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+}
+
+}  // namespace
 
 KalshiConnector::KalshiConnector(const HttpClient& http)
     : http_(http) {}
@@ -61,7 +72,9 @@ icarus::core::OrderBook KalshiConnector::fetch_order_book(const std::string& tic
     RawOrderBook raw_order_book = parse_order_book_json(response.body);
     // The requested ticker is known even if the order book payload omits it.
     raw_order_book.ticker = ticker;
-    return to_canonical_order_book(raw_order_book);
+    icarus::core::OrderBook order_book = to_canonical_order_book(raw_order_book);
+    order_book.snapshot_time_unix_ms = current_time_unix_ms();
+    return order_book;
 }
 
 }  // namespace icarus::connectors::kalshi
