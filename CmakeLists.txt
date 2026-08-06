@@ -216,4 +216,21 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME app_state_tests COMMAND app_state_tests)
+
+    add_executable(convergence_flow_tests
+        tests/convergence_flow_tests.cpp
+        src/strategy/convergence.cpp
+        src/strategy/pricing.cpp
+    )
+
+    target_include_directories(convergence_flow_tests PRIVATE
+        src
+    )
+
+    target_link_libraries(convergence_flow_tests PRIVATE
+        core
+        paper_trading
+    )
+
+    add_test(NAME convergence_flow_tests COMMAND convergence_flow_tests)
 endif()
