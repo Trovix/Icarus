@@ -35,9 +35,16 @@ spread calculation when the two venues phrase opposite propositions.
 
 ## Entry
 
-Enter only when:
+The engine prices both complementary directions at the common executable
+quantity. Define the all-in entry edge as:
 
-- `abs(S(t))` exceeds the configured entry threshold;
+```text
+E_entry = 1 - (Kalshi leg debit + Polymarket leg debit) / paired quantity
+```
+
+The debits include configured entry fees and buffers. Enter only when:
+
+- `E_entry` exceeds the configured entry threshold;
 - the expected convergence move exceeds estimated round-trip fees, spread,
   slippage, and safety buffer;
 - both books are fresh and have sufficient executable depth;
@@ -51,7 +58,8 @@ orphan exposure and invoke the configured orphan policy.
 
 The normal exit occurs when any configured condition is met:
 
-- `abs(S(t))` falls below the convergence exit threshold;
+- executable paired bids reach the convergence target and the close is not a
+  net loss after exit fees;
 - executable mark-to-market profit reaches its target;
 - loss reaches the stop-loss limit;
 - the maximum holding period expires; or
@@ -86,4 +94,3 @@ important risk and must remain visible in the pair audit trail.
 - One venue leg fills or closes without the other.
 - Quotes become stale during entry or exit.
 - Fees or resolution behavior are modelled incorrectly.
-

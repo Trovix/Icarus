@@ -1,10 +1,12 @@
 # ICARUS market matcher
 
-The matcher is offline-first. It deterministically blocks incompatible contracts,
-ranks the remaining cross-venue candidates with TF-IDF cosine similarity, and only
-accepts mutual-best matches that clear both a confidence threshold and an ambiguity
-margin. If `OPENAI_API_KEY` is present, embeddings rerank candidates and
+Candidate generation is offline-first. It deterministically blocks incompatible
+contracts, ranks the remaining cross-venue candidates with TF-IDF cosine similarity,
+and only accepts mutual-best matches that clear both a confidence threshold and an
+ambiguity margin. If `OPENAI_API_KEY` is present, embeddings rerank candidates and
 `gpt-5.6-terra` conservatively judges the full contract text using structured output.
+The autonomous C++ app accepts semantic `openai_judged` output by default; offline
+acceptance must be enabled explicitly in `config/paper.json`.
 
 Install from the repository root:
 

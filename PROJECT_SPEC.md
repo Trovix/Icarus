@@ -36,7 +36,9 @@ The system must:
 - Maintain canonical title, description, category, resolution rules, close
   time, outcome labels, venue, and venue market ID.
 - Fetch each required order book once per polling cycle.
-- Timestamp every snapshot and reject stale or incomplete data.
+- Timestamp every snapshot and reject stale or incomplete entry data. Exit
+  attempts require only the held-leg bids and must not depend on unrelated
+  outcome sides.
 - Preserve price and size at every order-book level.
 - Treat transport and parsing failures as unavailable data.
 - Normalize inverted outcome polarity before calculating spreads.
@@ -65,9 +67,10 @@ A convergence entry must satisfy all of the following:
 - The pair is active and accepted by the matcher.
 - Both books belong to the expected markets and outcomes.
 - Both snapshots are within the configured maximum age.
-- Absolute spread exceeds the entry threshold.
-- Expected movement to the configured exit threshold exceeds estimated
-  round-trip costs and safety buffer.
+- All-in executable edge at the common paired depth exceeds the entry
+  threshold after entry fees and buffers.
+- Expected movement toward parity covers estimated exit costs and the safety
+  buffer.
 - Intended size can be priced from ask depth on both legs.
 - Cash and exposure limits permit both legs.
 - The same pair/direction is not open or cooling down.
@@ -79,7 +82,8 @@ executable depth rather than midpoint prices.
 
 Every open trade is re-evaluated on each fresh snapshot. Exit conditions are:
 
-- Spread convergence below the configured exit threshold.
+- Executable paired bids reach the configured convergence target without
+  locking in a net loss after exit fees.
 - Executable profit target reached.
 - Executable stop loss reached.
 - Maximum holding time reached.
@@ -122,7 +126,7 @@ Repeated processing of a signal, close, or settlement must be idempotent.
 
 V1 must support configurable limits for:
 
-- Entry and exit spread thresholds.
+- Executable entry-edge and paired-bid exit thresholds.
 - Profit target and stop loss.
 - Maximum holding period.
 - Maximum quote age.
@@ -147,8 +151,8 @@ The terminal interface is observational and must show:
 - Hedged positions and orphan exposure.
 - Realized and executable unrealized P&L.
 
-Required controls are pause/resume, one-cycle refresh, and graceful quit. Trade
-approval is not required.
+Required controls are pause/resume, one-cycle refresh, catalog rematching, and
+graceful quit. Trade approval is not required.
 
 ## Persistence and Configuration
 
@@ -198,4 +202,3 @@ Paper-Trading V1 is complete when:
 - Predictive directional trading.
 - Historical parameter optimization.
 - High-frequency or distributed execution.
-

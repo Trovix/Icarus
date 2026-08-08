@@ -40,6 +40,7 @@ Makefile
 *.log
 logs/
 *.trace
+debug_run_*.txt
 
 
 # IDE - VSCode
@@ -100,4 +101,11 @@ coverage/
 __pycache__/
 *.pyc
 venv/
+.venv/
 .envrc
+.pytest_cache/
+*.egg-info/
+
+# Generated market data and paper portfolio state
+
+data/
