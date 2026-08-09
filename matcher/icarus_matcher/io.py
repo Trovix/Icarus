@@ -65,4 +65,3 @@ def atomic_write_json(path: str | Path, payload: dict[str, Any]) -> None:
     finally:
         if temporary_path is not None and temporary_path.exists():
             temporary_path.unlink()
-

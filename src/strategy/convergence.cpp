@@ -146,4 +146,3 @@ std::optional<ConvergenceSignal> detect_convergence_entry(
 }
 
 }  // namespace icarus::strategy
-

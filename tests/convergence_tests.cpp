@@ -107,4 +107,3 @@ int main() {
     test_rejects_small_spread_and_wrong_books();
     return 0;
 }
-

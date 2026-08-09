@@ -38,4 +38,3 @@ where = ["matcher"]
 [tool.pytest.ini_options]
 testpaths = ["matcher/tests"]
 addopts = "-q"
-

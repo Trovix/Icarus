@@ -80,4 +80,3 @@ int main() {
     test_legacy_array_and_versioned_round_trip();
     return 0;
 }
-

@@ -51,7 +51,6 @@ class MatcherCache:
             (model, content_hash, json.dumps(list(vector), separators=(",", ":"))),
         )
         self.connection.commit()
-
     def get_judgment(self, model: str, pair_hash: str) -> dict[str, Any] | None:
         row = self.connection.execute(
             "SELECT judgment_json FROM judgments WHERE model = ? AND pair_hash = ?",
@@ -65,4 +64,3 @@ class MatcherCache:
             (model, pair_hash, json.dumps(judgment, sort_keys=True, separators=(",", ":"))),
         )
         self.connection.commit()
-
